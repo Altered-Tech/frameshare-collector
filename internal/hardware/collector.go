@@ -35,14 +35,18 @@ func Collect(ctx context.Context) (Snapshot, error) {
 	}
 	snap.Storage = storage
 
-	// GPU and display detection shell out to OS-specific tools that may be
-	// missing or fail on unusual configurations; treat failures as
-	// non-fatal so the rest of the snapshot still gets written.
+	// GPU, display, and device detection shell out to OS-specific tools
+	// that may be missing or fail on unusual configurations; treat
+	// failures as non-fatal so the rest of the snapshot still gets
+	// written.
 	if gpus, err := collectGPUs(ctx); err == nil {
 		snap.GPUs = gpus
 	}
 	if displays, err := collectDisplays(ctx); err == nil {
 		snap.Displays = displays
+	}
+	if device, err := collectDevice(ctx); err == nil {
+		snap.Device = device
 	}
 
 	return snap, nil

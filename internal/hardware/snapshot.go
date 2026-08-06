@@ -6,14 +6,25 @@ import "time"
 
 // Snapshot is the full local hardware report written to disk.
 type Snapshot struct {
-	CollectorVersion string    `json:"collector_version"`
-	CollectedAt      time.Time `json:"collected_at"`
-	OS               OSInfo    `json:"os"`
-	CPU              CPUInfo   `json:"cpu"`
-	Memory           MemInfo   `json:"memory"`
-	GPUs             []GPUInfo `json:"gpus"`
-	Displays         []Display `json:"displays"`
-	Storage          []Disk    `json:"storage"`
+	CollectorVersion string     `json:"collector_version"`
+	CollectedAt      time.Time  `json:"collected_at"`
+	Device           DeviceInfo `json:"device"`
+	OS               OSInfo     `json:"os"`
+	CPU              CPUInfo    `json:"cpu"`
+	Memory           MemInfo    `json:"memory"`
+	GPUs             []GPUInfo  `json:"gpus"`
+	Displays         []Display  `json:"displays"`
+	Storage          []Disk     `json:"storage"`
+}
+
+// DeviceInfo identifies the physical machine model via DMI/SMBIOS strings.
+// KnownHandheld is set when Vendor/Model matches a recognized gaming
+// handheld (Steam Deck, ROG Ally, etc); it's empty for unrecognized or
+// non-handheld machines.
+type DeviceInfo struct {
+	Vendor        string `json:"vendor,omitempty"`
+	Model         string `json:"model,omitempty"`
+	KnownHandheld string `json:"known_handheld,omitempty"`
 }
 
 type OSInfo struct {

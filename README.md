@@ -42,3 +42,8 @@ Use `-out` to choose a different output directory:
   those fields left empty.
 - Storage entries are filtered to real local physical volumes — network
   shares and OS-internal sub-volumes are excluded.
+- Device identification reads DMI/SMBIOS strings (`/sys/class/dmi/id` on
+  Linux, `Win32_ComputerSystemProduct` on Windows, `hw.model` on macOS) and
+  matches them against a manually maintained list of known gaming handhelds
+  (Steam Deck, ROG Ally, Legion Go, etc). Unrecognized devices still report
+  their raw vendor/model; `known_handheld` is only set on a match.

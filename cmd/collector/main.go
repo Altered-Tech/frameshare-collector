@@ -56,6 +56,7 @@ func main() {
 
 func printSummary(snap hardware.Snapshot) {
 	fmt.Printf("Version: %s\n", snap.CollectorVersion)
+	fmt.Printf("Device:  %s %s%s\n", snap.Device.Vendor, snap.Device.Model, handheldLabel(snap.Device.KnownHandheld))
 	fmt.Printf("OS:      %s %s (%s, %s)\n", snap.OS.Name, snap.OS.Version, snap.OS.Platform, snap.OS.Arch)
 	fmt.Printf("CPU:     %s (%d cores / %d threads)\n", snap.CPU.Model, snap.CPU.PhysicalCores, snap.CPU.LogicalCores)
 	fmt.Printf("Memory:  %.1f GB\n", snap.Memory.TotalGB)
@@ -75,4 +76,11 @@ func primaryLabel(isPrimary bool) string {
 		return " [primary]"
 	}
 	return ""
+}
+
+func handheldLabel(knownHandheld string) string {
+	if knownHandheld == "" {
+		return ""
+	}
+	return fmt.Sprintf(" [%s]", knownHandheld)
 }
