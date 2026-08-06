@@ -6,13 +6,14 @@ import "time"
 
 // Snapshot is the full local hardware report written to disk.
 type Snapshot struct {
-	CollectedAt time.Time `json:"collected_at"`
-	OS          OSInfo    `json:"os"`
-	CPU         CPUInfo   `json:"cpu"`
-	Memory      MemInfo   `json:"memory"`
-	GPUs        []GPUInfo `json:"gpus"`
-	Displays    []Display `json:"displays"`
-	Storage     []Disk    `json:"storage"`
+	CollectorVersion string    `json:"collector_version"`
+	CollectedAt      time.Time `json:"collected_at"`
+	OS               OSInfo    `json:"os"`
+	CPU              CPUInfo   `json:"cpu"`
+	Memory           MemInfo   `json:"memory"`
+	GPUs             []GPUInfo `json:"gpus"`
+	Displays         []Display `json:"displays"`
+	Storage          []Disk    `json:"storage"`
 }
 
 type OSInfo struct {

@@ -14,9 +14,20 @@ import (
 	"github.com/alteredtech/frameshare-collector/internal/hardware"
 )
 
+// version is set at build time via -ldflags "-X main.version=v1.2.3"; the
+// release workflow injects the pushed tag. Local `go build`/`go run` leave
+// it at "dev".
+var version = "dev"
+
 func main() {
 	outDir := flag.String("out", ".", "directory to write the snapshot JSON file to")
+	showVersion := flag.Bool("version", false, "print the collector version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 
 	ctx := context.Background()
 	snap, err := hardware.Collect(ctx)
@@ -24,6 +35,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+	snap.CollectorVersion = version
 
 	data, err := json.MarshalIndent(snap, "", "  ")
 	if err != nil {
@@ -43,6 +55,7 @@ func main() {
 }
 
 func printSummary(snap hardware.Snapshot) {
+	fmt.Printf("Version: %s\n", snap.CollectorVersion)
 	fmt.Printf("OS:      %s %s (%s, %s)\n", snap.OS.Name, snap.OS.Version, snap.OS.Platform, snap.OS.Arch)
 	fmt.Printf("CPU:     %s (%d cores / %d threads)\n", snap.CPU.Model, snap.CPU.PhysicalCores, snap.CPU.LogicalCores)
 	fmt.Printf("Memory:  %.1f GB\n", snap.Memory.TotalGB)
