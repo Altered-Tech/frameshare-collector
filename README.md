@@ -1,0 +1,44 @@
+# frameshare-collector
+
+## Requirements
+
+- Go 1.26+
+- Linux only: `lspci` and `xrandr` on `PATH` for GPU/display detection
+  (usually already present on desktop distros; may be missing on a bare
+  Wayland-only setup)
+
+## Build
+
+```sh
+go build -o collector ./cmd/collector
+```
+
+## Run
+
+```sh
+go run ./cmd/collector
+```
+
+or, using the built binary:
+
+```sh
+./collector
+```
+
+This writes `hardware-snapshot-<timestamp>.json` to the current directory
+and prints a short summary to stdout.
+
+Use `-out` to choose a different output directory:
+
+```sh
+./collector -out ~/Desktop
+```
+
+## Notes
+
+- GPU and display detection shell out to OS-specific tools (`system_profiler`
+  on macOS, PowerShell/CIM on Windows, `lspci`/`xrandr` on Linux). If those
+  fail or aren't available, the rest of the snapshot is still written with
+  those fields left empty.
+- Storage entries are filtered to real local physical volumes — network
+  shares and OS-internal sub-volumes are excluded.
