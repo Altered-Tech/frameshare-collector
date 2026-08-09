@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -55,5 +57,36 @@ func collectDisplays(ctx context.Context) ([]Display, error) {
 	if current != nil {
 		displays = append(displays, *current)
 	}
+
+	for i := range displays {
+		pnpID, model := readConnectorEDID(displays[i].Name)
+		if pnpID != "" {
+			displays[i].MonitorVendor = resolvePNPVendor(pnpID)
+		}
+		displays[i].MonitorModel = model
+	}
+
 	return displays, scanner.Err()
+}
+
+// readConnectorEDID reads and decodes the EDID for the DRM connector
+// matching an xrandr connector name (e.g. "DP-1"). Sysfs exposes each
+// connector as /sys/class/drm/cardN-<connector>/edid; xrandr's connector
+// name is that path with the "cardN-" prefix stripped, so match on suffix.
+func readConnectorEDID(connector string) (pnpID, model string) {
+	entries, err := os.ReadDir("/sys/class/drm")
+	if err != nil {
+		return "", ""
+	}
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), "-"+connector) {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join("/sys/class/drm", e.Name(), "edid"))
+		if err != nil {
+			return "", ""
+		}
+		return decodeEDID(data)
+	}
+	return "", ""
 }

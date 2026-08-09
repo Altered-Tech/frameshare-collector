@@ -46,5 +46,23 @@ func collectDisplays(ctx context.Context) ([]Display, error) {
 			})
 		}
 	}
+
+	// ioreg enumerates IODisplay services independently of
+	// system_profiler's per-GPU Ndrvs grouping, and neither exposes a key
+	// to correlate entries precisely. When the counts match (the common
+	// case: one row per active monitor) pair them up positionally;
+	// otherwise leave monitor identity empty rather than risk mislabeling
+	// a display.
+	edids := fetchDisplayEDIDs(ctx)
+	if len(edids) == len(displays) {
+		for i, raw := range edids {
+			pnpID, model := decodeEDID(raw)
+			if pnpID != "" {
+				displays[i].MonitorVendor = resolvePNPVendor(pnpID)
+			}
+			displays[i].MonitorModel = model
+		}
+	}
+
 	return displays, nil
 }
