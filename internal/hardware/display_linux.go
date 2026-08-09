@@ -22,6 +22,15 @@ var (
 // missing (pure Wayland compositor with no XWayland), displays are omitted.
 func collectDisplays(ctx context.Context) ([]Display, error) {
 	cmd := exec.CommandContext(ctx, "xrandr", "--current")
+	cmd.Env = os.Environ()
+	if _, set := os.LookupEnv("DISPLAY"); !set {
+		// xrandr requires DISPLAY to connect to the X server. It's normally
+		// inherited from the desktop session, but shells with no attached
+		// session (SSH, cron) don't have it set; :0 is the near-universal
+		// default for a machine's primary local X session, including the
+		// Steam Deck's desktop mode.
+		cmd.Env = append(cmd.Env, "DISPLAY=:0")
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
