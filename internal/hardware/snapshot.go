@@ -57,17 +57,29 @@ type GPUInfo struct {
 }
 
 type Display struct {
-	Name      string  `json:"name,omitempty"`
-	WidthPx   int     `json:"width_px"`
-	HeightPx  int     `json:"height_px"`
-	RefreshHz float64 `json:"refresh_hz,omitempty"`
-	IsPrimary bool    `json:"is_primary,omitempty"`
+	// Name is the connector/adapter identifier (e.g. "DP-1" on Linux, the
+	// GPU adapter name on Windows) — not a reliable monitor identity. Kept
+	// for backward compatibility and as a fallback when EDID is unreadable.
+	Name          string  `json:"name,omitempty"`
+	WidthPx       int     `json:"width_px"`
+	HeightPx      int     `json:"height_px"`
+	RefreshHz     float64 `json:"refresh_hz,omitempty"`
+	IsPrimary     bool    `json:"is_primary,omitempty"`
+	MonitorVendor string  `json:"monitor_vendor,omitempty"` // decoded PNP ID -> name, or raw PNP ID if unmapped
+	MonitorModel  string  `json:"monitor_model,omitempty"`  // EDID product name descriptor, e.g. "AW3225QF"
 }
 
 type Disk struct {
-	Device     string  `json:"device"`
-	Mountpoint string  `json:"mountpoint"`
-	Fstype     string  `json:"fstype,omitempty"`
+	Model      string  `json:"model,omitempty"`
+	Type       string  `json:"type,omitempty"` // e.g. "SSD", "HDD", "NVMe SSD"
 	TotalBytes uint64  `json:"total_bytes"`
 	TotalGB    float64 `json:"total_gb"`
+	// IsOSDrive is true when this physical disk hosts the boot/system
+	// volume. IsInstallDrive is true when it hosts the path passed to
+	// Collect as installPath (empty when no install path was given).
+	// Role is a human-readable summary of the two: "OS Drive", "Install
+	// Drive", "OS+Install Drive", or "" for a disk with neither role.
+	IsOSDrive      bool   `json:"is_os_drive,omitempty"`
+	IsInstallDrive bool   `json:"is_install_drive,omitempty"`
+	Role           string `json:"role,omitempty"`
 }

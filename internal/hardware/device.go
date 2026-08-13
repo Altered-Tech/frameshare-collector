@@ -17,6 +17,7 @@ type handheldSignature struct {
 var knownHandhelds = []handheldSignature{
 	{name: "Steam Deck LCD", keywords: []string{"valve", "jupiter"}},
 	{name: "Steam Deck OLED", keywords: []string{"valve", "galileo"}},
+	{name: "Steam Machine", keywords: []string{"valve", "fremont"}},
 	{name: "ROG Ally X", keywords: []string{"rog ally x"}},
 	{name: "ROG Ally", keywords: []string{"rog ally"}},
 	{name: "Lenovo Legion Go", keywords: []string{"legion go"}},

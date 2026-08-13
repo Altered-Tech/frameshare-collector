@@ -1,3 +1,4 @@
 /hardware-snapshot-*.json
 /collector
 /bin/
+/dist/

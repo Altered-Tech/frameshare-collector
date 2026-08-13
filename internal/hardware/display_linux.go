@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,6 +22,15 @@ var (
 // missing (pure Wayland compositor with no XWayland), displays are omitted.
 func collectDisplays(ctx context.Context) ([]Display, error) {
 	cmd := exec.CommandContext(ctx, "xrandr", "--current")
+	cmd.Env = os.Environ()
+	if _, set := os.LookupEnv("DISPLAY"); !set {
+		// xrandr requires DISPLAY to connect to the X server. It's normally
+		// inherited from the desktop session, but shells with no attached
+		// session (SSH, cron) don't have it set; :0 is the near-universal
+		// default for a machine's primary local X session, including the
+		// Steam Deck's desktop mode.
+		cmd.Env = append(cmd.Env, "DISPLAY=:0")
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -55,5 +66,36 @@ func collectDisplays(ctx context.Context) ([]Display, error) {
 	if current != nil {
 		displays = append(displays, *current)
 	}
+
+	for i := range displays {
+		pnpID, model := readConnectorEDID(displays[i].Name)
+		if pnpID != "" {
+			displays[i].MonitorVendor = resolvePNPVendor(pnpID)
+		}
+		displays[i].MonitorModel = model
+	}
+
 	return displays, scanner.Err()
+}
+
+// readConnectorEDID reads and decodes the EDID for the DRM connector
+// matching an xrandr connector name (e.g. "DP-1"). Sysfs exposes each
+// connector as /sys/class/drm/cardN-<connector>/edid; xrandr's connector
+// name is that path with the "cardN-" prefix stripped, so match on suffix.
+func readConnectorEDID(connector string) (pnpID, model string) {
+	entries, err := os.ReadDir("/sys/class/drm")
+	if err != nil {
+		return "", ""
+	}
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), "-"+connector) {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join("/sys/class/drm", e.Name(), "edid"))
+		if err != nil {
+			return "", ""
+		}
+		return decodeEDID(data)
+	}
+	return "", ""
 }
