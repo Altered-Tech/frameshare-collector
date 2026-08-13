@@ -1,0 +1,29 @@
+{
+  "branches": ["main"],
+  "tagFormat": "v${version}",
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "make all VERSION=v${nextRelease.version}"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "successComment": false,
+        "failComment": false,
+        "failTitle": false,
+        "assets": [
+          { "path": "dist/collector-linux-amd64", "label": "collector-linux-amd64" },
+          { "path": "dist/collector-linux-arm64", "label": "collector-linux-arm64" },
+          { "path": "dist/collector-darwin-amd64", "label": "collector-darwin-amd64" },
+          { "path": "dist/collector-darwin-arm64", "label": "collector-darwin-arm64" },
+          { "path": "dist/collector-windows-amd64.exe", "label": "collector-windows-amd64.exe" }
+        ]
+      }
+    ]
+  ]
+}

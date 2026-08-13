@@ -1,0 +1,12 @@
+{
+  "name": "frameshare-collector-release-tooling",
+  "private": true,
+  "description": "semantic-release config for tagging/releasing the frameshare-collector Go module. Not a published package.",
+  "devDependencies": {
+    "@semantic-release/commit-analyzer": "13.0.1",
+    "@semantic-release/exec": "7.1.0",
+    "@semantic-release/github": "12.0.9",
+    "@semantic-release/release-notes-generator": "14.1.1",
+    "semantic-release": "25.0.9"
+  }
+}
