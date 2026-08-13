@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/term"
+
 	"github.com/alteredtech/frameshare-collector/internal/hardware"
 	"github.com/alteredtech/frameshare-collector/internal/library"
 )
@@ -41,7 +43,7 @@ type selectedGame struct {
 func main() {
 	outDir := flag.String("out", ".", "directory to write the snapshot JSON file to")
 	installPath := flag.String("install-path", "", "game install directory; the physical disk containing it is reported as the install drive. Ignored if -select-game is set")
-	selectGameFlag := flag.Bool("select-game", false, "list installed games and choose one; sets -install-path to its install directory and records the choice in the snapshot")
+	selectGameFlag := flag.Bool("select-game", false, "list installed games and choose one (arrow keys + Enter in a terminal, or type a number); sets -install-path to its install directory and records the choice in the snapshot")
 	showVersion := flag.Bool("version", false, "print the collector version and exit")
 	flag.Parse()
 
@@ -59,7 +61,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
-		game, source, err := chooseGame(libs, os.Stdin, os.Stdout)
+		game, source, err := pickGame(libs, os.Stdin, os.Stdout)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -93,40 +95,73 @@ func main() {
 	printSummary(snap, selected)
 }
 
-// chooseGame lists every installed game across all detected libraries and
-// prompts the user (via in/out) to pick one by number.
-func chooseGame(libs []library.Library, in io.Reader, out io.Writer) (library.Game, library.Source, error) {
-	type entry struct {
-		game   library.Game
-		source library.Source
-	}
-	var entries []entry
+// gameEntry pairs an installed Game with the Library it came from, flattened
+// across all detected libraries into a single pickable list.
+type gameEntry struct {
+	game   library.Game
+	source library.Source
+}
+
+func gameEntries(libs []library.Library) []gameEntry {
+	var entries []gameEntry
 	for _, lib := range libs {
 		for _, g := range lib.Games {
-			entries = append(entries, entry{game: g, source: lib.Source})
+			entries = append(entries, gameEntry{game: g, source: lib.Source})
 		}
 	}
+	return entries
+}
+
+func (e gameEntry) label() string {
+	return fmt.Sprintf("%s [%s]", e.game.Name, e.source)
+}
+
+// pickGame lists every installed game across all detected libraries and
+// lets the user choose one: an arrow-key menu when stdin is a real
+// terminal, or a type-a-number prompt otherwise (piped input, tests).
+func pickGame(libs []library.Library, stdin, stdout *os.File) (library.Game, library.Source, error) {
+	entries := gameEntries(libs)
 	if len(entries) == 0 {
 		return library.Game{}, "", fmt.Errorf("no installed games found")
 	}
 
+	var idx int
+	var err error
+	if term.IsTerminal(int(stdin.Fd())) {
+		labels := make([]string, len(entries))
+		for i, e := range entries {
+			labels[i] = e.label()
+		}
+		idx, err = interactiveGamePicker(labels, stdin, stdout)
+	} else {
+		idx, err = numberedGamePicker(entries, stdin, stdout)
+	}
+	if err != nil {
+		return library.Game{}, "", err
+	}
+
+	chosen := entries[idx]
+	return chosen.game, chosen.source, nil
+}
+
+// numberedGamePicker is the non-interactive fallback: it prints the list
+// and reads a number followed by Enter from in.
+func numberedGamePicker(entries []gameEntry, in io.Reader, out io.Writer) (int, error) {
 	fmt.Fprintln(out, "Installed games:")
 	for i, e := range entries {
-		fmt.Fprintf(out, "  %d) %s [%s]\n", i+1, e.game.Name, e.source)
+		fmt.Fprintf(out, "  %d) %s\n", i+1, e.label())
 	}
 	fmt.Fprint(out, "Select a game by number: ")
 
 	line, err := bufio.NewReader(in).ReadString('\n')
 	if err != nil && err != io.EOF {
-		return library.Game{}, "", fmt.Errorf("read selection: %w", err)
+		return 0, fmt.Errorf("read selection: %w", err)
 	}
 	choice, err := strconv.Atoi(strings.TrimSpace(line))
 	if err != nil || choice < 1 || choice > len(entries) {
-		return library.Game{}, "", fmt.Errorf("invalid selection %q", strings.TrimSpace(line))
+		return 0, fmt.Errorf("invalid selection %q", strings.TrimSpace(line))
 	}
-
-	chosen := entries[choice-1]
-	return chosen.game, chosen.source, nil
+	return choice - 1, nil
 }
 
 func printSummary(snap hardware.Snapshot, selected *selectedGame) {

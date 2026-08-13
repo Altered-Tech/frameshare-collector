@@ -21,38 +21,44 @@ func testLibraries() []library.Library {
 	}
 }
 
-func TestChooseGame(t *testing.T) {
+func TestNumberedGamePicker(t *testing.T) {
 	var out bytes.Buffer
-	in := strings.NewReader("2\n")
+	entries := gameEntries(testLibraries())
 
-	game, source, err := chooseGame(testLibraries(), in, &out)
+	idx, err := numberedGamePicker(entries, strings.NewReader("2\n"), &out)
 	if err != nil {
-		t.Fatalf("chooseGame() error = %v", err)
+		t.Fatalf("numberedGamePicker() error = %v", err)
 	}
-	if game.Name != "Hades" {
-		t.Errorf("chooseGame() game = %q, want Hades", game.Name)
+	if entries[idx].game.Name != "Hades" {
+		t.Errorf("numberedGamePicker() game = %q, want Hades", entries[idx].game.Name)
 	}
-	if source != library.SourceSteam {
-		t.Errorf("chooseGame() source = %q, want %q", source, library.SourceSteam)
+	if entries[idx].source != library.SourceSteam {
+		t.Errorf("numberedGamePicker() source = %q, want %q", entries[idx].source, library.SourceSteam)
 	}
 	if !strings.Contains(out.String(), "1) Subnautica") || !strings.Contains(out.String(), "2) Hades") {
-		t.Errorf("chooseGame() output = %q, want both games listed", out.String())
+		t.Errorf("numberedGamePicker() output = %q, want both games listed", out.String())
 	}
 }
 
-func TestChooseGameNoGames(t *testing.T) {
-	var out bytes.Buffer
-	if _, _, err := chooseGame(nil, strings.NewReader("1\n"), &out); err == nil {
-		t.Error("chooseGame() error = nil, want error for empty library list")
-	}
-}
-
-func TestChooseGameInvalidSelection(t *testing.T) {
+func TestNumberedGamePickerInvalidSelection(t *testing.T) {
+	entries := gameEntries(testLibraries())
 	cases := []string{"0\n", "3\n", "abc\n", "\n"}
 	for _, input := range cases {
 		var out bytes.Buffer
-		if _, _, err := chooseGame(testLibraries(), strings.NewReader(input), &out); err == nil {
-			t.Errorf("chooseGame(%q) error = nil, want error", input)
+		if _, err := numberedGamePicker(entries, strings.NewReader(input), &out); err == nil {
+			t.Errorf("numberedGamePicker(%q) error = nil, want error", input)
 		}
+	}
+}
+
+func TestGameEntriesEmpty(t *testing.T) {
+	if got := gameEntries(nil); got != nil {
+		t.Errorf("gameEntries(nil) = %v, want nil", got)
+	}
+}
+
+func TestPickGameNoGames(t *testing.T) {
+	if _, _, err := pickGame(nil, nil, nil); err == nil {
+		t.Error("pickGame(nil libs) error = nil, want error for empty library list")
 	}
 }
