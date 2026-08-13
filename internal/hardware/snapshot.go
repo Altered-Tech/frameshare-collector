@@ -74,4 +74,12 @@ type Disk struct {
 	Type       string  `json:"type,omitempty"` // e.g. "SSD", "HDD", "NVMe SSD"
 	TotalBytes uint64  `json:"total_bytes"`
 	TotalGB    float64 `json:"total_gb"`
+	// IsOSDrive is true when this physical disk hosts the boot/system
+	// volume. IsInstallDrive is true when it hosts the path passed to
+	// Collect as installPath (empty when no install path was given).
+	// Role is a human-readable summary of the two: "OS Drive", "Install
+	// Drive", "OS+Install Drive", or "" for a disk with neither role.
+	IsOSDrive      bool   `json:"is_os_drive,omitempty"`
+	IsInstallDrive bool   `json:"is_install_drive,omitempty"`
+	Role           string `json:"role,omitempty"`
 }

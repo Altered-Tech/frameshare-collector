@@ -21,6 +21,7 @@ var version = "dev"
 
 func main() {
 	outDir := flag.String("out", ".", "directory to write the snapshot JSON file to")
+	installPath := flag.String("install-path", "", "game install directory; the physical disk containing it is reported as the install drive")
 	showVersion := flag.Bool("version", false, "print the collector version and exit")
 	flag.Parse()
 
@@ -30,7 +31,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	snap, err := hardware.Collect(ctx)
+	snap, err := hardware.Collect(ctx, *installPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -67,7 +68,7 @@ func printSummary(snap hardware.Snapshot) {
 		fmt.Printf("Display: %dx%d @ %.0fHz%s\n", d.WidthPx, d.HeightPx, d.RefreshHz, primaryLabel(d.IsPrimary))
 	}
 	for _, s := range snap.Storage {
-		fmt.Printf("Storage: %s (%s) %.1f GB\n", s.Model, s.Type, s.TotalGB)
+		fmt.Printf("Storage: %s (%s) %.1f GB%s\n", s.Model, s.Type, s.TotalGB, roleLabel(s.Role))
 	}
 }
 
@@ -83,4 +84,11 @@ func handheldLabel(knownHandheld string) string {
 		return ""
 	}
 	return fmt.Sprintf(" [%s]", knownHandheld)
+}
+
+func roleLabel(role string) string {
+	if role == "" {
+		return ""
+	}
+	return fmt.Sprintf(" [%s]", role)
 }

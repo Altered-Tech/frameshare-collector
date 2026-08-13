@@ -7,8 +7,10 @@ import (
 )
 
 // Collect gathers a full local hardware snapshot. It does not make any
-// network calls.
-func Collect(ctx context.Context) (Snapshot, error) {
+// network calls. installPath, if non-empty, is a game install directory
+// used to identify which physical disk (if any) is the install drive; pass
+// "" to skip that detection.
+func Collect(ctx context.Context, installPath string) (Snapshot, error) {
 	snap := Snapshot{CollectedAt: time.Now().UTC()}
 
 	osInfo, err := collectOS(ctx)
@@ -29,7 +31,7 @@ func Collect(ctx context.Context) (Snapshot, error) {
 	}
 	snap.Memory = memInfo
 
-	storage, err := collectStorage(ctx)
+	storage, err := collectStorage(ctx, installPath)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("collect storage: %w", err)
 	}
