@@ -34,6 +34,16 @@ Use `-out` to choose a different output directory:
 ./collector -out ~/Desktop
 ```
 
+## Releases
+
+Versioning and releases are automated by [semantic-release](https://github.com/semantic-release/semantic-release):
+every push to `main` is analyzed for [Conventional Commits](https://www.conventionalcommits.org/)
+(`fix:`, `feat:`, `BREAKING CHANGE:`/`type!:`) since the last release, and if
+any are found, it tags the next semantic version, builds binaries for every
+platform, and publishes a GitHub Release with them attached. Commits that
+don't follow the convention don't trigger a release. See `.releaserc.json`
+and `.github/workflows/release.yml`.
+
 ## Notes
 
 - GPU and display detection shell out to OS-specific tools (`system_profiler`
