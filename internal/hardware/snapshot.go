@@ -70,9 +70,8 @@ type Display struct {
 }
 
 type Disk struct {
-	Device     string  `json:"device"`
-	Mountpoint string  `json:"mountpoint"`
-	Fstype     string  `json:"fstype,omitempty"`
+	Model      string  `json:"model,omitempty"`
+	Type       string  `json:"type,omitempty"` // e.g. "SSD", "HDD", "NVMe SSD"
 	TotalBytes uint64  `json:"total_bytes"`
 	TotalGB    float64 `json:"total_gb"`
 }

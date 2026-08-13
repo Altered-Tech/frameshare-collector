@@ -67,7 +67,7 @@ func printSummary(snap hardware.Snapshot) {
 		fmt.Printf("Display: %dx%d @ %.0fHz%s\n", d.WidthPx, d.HeightPx, d.RefreshHz, primaryLabel(d.IsPrimary))
 	}
 	for _, s := range snap.Storage {
-		fmt.Printf("Storage: %s (%s) %.1f GB\n", s.Device, s.Mountpoint, s.TotalGB)
+		fmt.Printf("Storage: %s (%s) %.1f GB\n", s.Model, s.Type, s.TotalGB)
 	}
 }
 
