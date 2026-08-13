@@ -6,9 +6,12 @@ VERSION := $(shell git describe --tags --exact-match 2>/dev/null || echo dev-$$(
 LDFLAGS := -X main.version=$(VERSION)
 BUILD   := CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)"
 
-# BUMP selects which part of the last vX.Y.Z tag `make release` increments;
-# override on the command line, e.g. `make release BUMP=minor`.
-BUMP := patch
+# BUMP forces which part of the last vX.Y.Z tag `make release` increments,
+# e.g. `make release BUMP=minor`. Leave unset (the default) to have it
+# decide on its own from Conventional Commits since the last tag: any
+# "type!:" or "BREAKING CHANGE:" -> major, else any "feat:" -> minor, else
+# any "fix:" -> patch, else patch.
+BUMP :=
 
 .PHONY: all linux mac windows \
 	linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64 \
@@ -24,10 +27,11 @@ help:
 	@echo "  make vet           go vet ./..."
 	@echo "  make test          go test ./..."
 	@echo "  make clean         remove $(DIST)/"
-	@echo "  make release       tag the next patch version (vX.Y.Z+1) and push it,"
-	@echo "                     triggering the release workflow. BUMP=minor|major to"
-	@echo "                     bump a different part; release-{major,minor,patch} are"
-	@echo "                     shorthands for the same"
+	@echo "  make release       tag the next semantic version and push it, triggering"
+	@echo "                     the release workflow. Bump level (major/minor/patch) is"
+	@echo "                     decided from Conventional Commits since the last tag;"
+	@echo "                     override with BUMP=minor|major or the"
+	@echo "                     release-{major,minor,patch} shorthands"
 	@echo "Binaries are written to $(DIST)/, version: $(VERSION)"
 
 all: linux mac windows
@@ -67,9 +71,10 @@ clean:
 
 # release tags the next semantic version after the latest vX.Y.Z tag and
 # pushes it, which triggers the tag-triggered build/release workflow
-# (.github/workflows/build.yml). Defaults to a patch bump; override with
-# BUMP=minor or BUMP=major, or use the release-{major,minor,patch}
-# shorthands below.
+# (.github/workflows/build.yml). With BUMP unset, it decides major vs.
+# minor vs. patch itself from Conventional Commits since the last tag (see
+# the BUMP comment above); pass BUMP=minor/major, or use the
+# release-{major,minor,patch} shorthands, to force a level instead.
 release:
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "release: working tree not clean; commit or stash changes first" >&2; \
@@ -88,18 +93,41 @@ release:
 	@$(MAKE) --no-print-directory vet test
 	@current=$$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -1); \
 	current=$${current:-v0.0.0}; \
+	if [ "$$current" != "v0.0.0" ]; then \
+		range="$$current..HEAD"; \
+		if [ "$$(git rev-list $$range --count)" -eq 0 ]; then \
+			echo "release: no commits since $$current; nothing to release" >&2; \
+			exit 1; \
+		fi; \
+	else \
+		range="HEAD"; \
+	fi; \
+	bump="$(BUMP)"; \
+	if [ -z "$$bump" ]; then \
+		log=$$(git log $$range --format='%s%n%b'); \
+		if echo "$$log" | grep -Eq '^[a-zA-Z]+(\([^)]*\))?!:' || echo "$$log" | grep -q 'BREAKING CHANGE:'; then \
+			bump=major; \
+		elif echo "$$log" | grep -Eq '^feat(\([^)]*\))?:'; then \
+			bump=minor; \
+		elif echo "$$log" | grep -Eq '^fix(\([^)]*\))?:'; then \
+			bump=patch; \
+		else \
+			echo "release: no Conventional Commits (feat:/fix:/BREAKING CHANGE) found since $$current; defaulting to patch" >&2; \
+			bump=patch; \
+		fi; \
+	fi; \
 	ver=$${current#v}; \
 	major=$$(echo "$$ver" | cut -d. -f1); \
 	minor=$$(echo "$$ver" | cut -d. -f2); \
 	patch=$$(echo "$$ver" | cut -d. -f3); \
-	case "$(BUMP)" in \
+	case "$$bump" in \
 		major) major=$$((major + 1)); minor=0; patch=0 ;; \
 		minor) minor=$$((minor + 1)); patch=0 ;; \
 		patch) patch=$$((patch + 1)) ;; \
-		*) echo "release: BUMP must be major, minor, or patch (got '$(BUMP)')" >&2; exit 1 ;; \
+		*) echo "release: BUMP must be major, minor, or patch (got '$$bump')" >&2; exit 1 ;; \
 	esac; \
 	next="v$$major.$$minor.$$patch"; \
-	echo "release: $$current -> $$next"; \
+	echo "release: $$current -> $$next ($$bump)"; \
 	git tag -a "$$next" -m "$$next"; \
 	git push origin "$$next"
 
