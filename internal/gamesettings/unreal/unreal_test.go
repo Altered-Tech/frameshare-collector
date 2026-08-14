@@ -151,7 +151,7 @@ func TestConfigPathLinuxUsesProtonPrefix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ProtonAppDataPath() error = %v", err)
 	}
-	want := filepath.Join(steamLibrary, "steamapps", "compatdata", strayAppID, "pfx", "drive_c", "users", "steamuser", "AppData", "Local", "Stray", "Saved", "Config", "WindowsNoEditor", "GameUserSettings.ini")
+	want := filepath.Join(steamLibrary, "steamapps", "compatdata", strayAppID, "pfx", "drive_c", "users", "steamuser", "AppData", "Local", strayConfigFolder, "Saved", "Config", "WindowsNoEditor", "GameUserSettings.ini")
 	if got != want {
 		t.Errorf("ProtonAppDataPath() = %q, want %q", got, want)
 	}

@@ -9,8 +9,10 @@ import (
 const strayAppID = "1332010"
 
 // strayConfigFolder is the name Unreal saves Stray's config under; see
-// configPath.
-const strayConfigFolder = "Stray"
+// configPath. Stray's own project name in Unreal is "Hk_project", not
+// "Stray" -- config lands under that folder, not one named after the
+// title.
+const strayConfigFolder = "Hk_project"
 
 func init() {
 	gamesettings.Register(strayParser{})
