@@ -39,9 +39,17 @@ type snapshotOutput struct {
 	GameSettings *gamesettings.GameProfile `json:"game_settings,omitempty"`
 }
 
+// selectedGame mirrors library.Game rather than embedding it so
+// InstallPath -- which, under the user's home directory, embeds their OS
+// username -- can be left out of the JSON written to disk while still
+// being available in-process (e.g. for the printed summary). AppID, Name,
+// and SizeBytes carry no such information, so they're included as-is.
 type selectedGame struct {
-	library.Game
-	Source library.Source `json:"source,omitempty"`
+	AppID       string         `json:"app_id,omitempty"`
+	Name        string         `json:"name"`
+	SizeBytes   uint64         `json:"size_bytes,omitempty"`
+	Source      library.Source `json:"source,omitempty"`
+	InstallPath string         `json:"-"`
 }
 
 func main() {
@@ -71,7 +79,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
-		selected = &selectedGame{Game: game, Source: source}
+		selected = &selectedGame{AppID: game.AppID, Name: game.Name, SizeBytes: game.SizeBytes, Source: source, InstallPath: game.InstallPath}
 		*installPath = game.InstallPath
 		gameProfile = collectGameSettings(game, source)
 	}

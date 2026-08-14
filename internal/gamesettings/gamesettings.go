@@ -21,13 +21,19 @@ import "time"
 // title, keyed to the library entry (see internal/library.Game) it was
 // parsed from.
 type GameProfile struct {
-	ParserVersion string        `json:"parser_version"`
-	ParsedAt      time.Time     `json:"parsed_at"`
-	AppID         string        `json:"app_id,omitempty"`
-	Name          string        `json:"name"`
-	Source        string        `json:"source"` // e.g. "steam"; matches library.Source
-	ConfigPath    string        `json:"config_path,omitempty"`
-	Settings      TitleSettings `json:"settings"`
+	ParserVersion string    `json:"parser_version"`
+	ParsedAt      time.Time `json:"parsed_at"`
+	AppID         string    `json:"app_id,omitempty"`
+	Name          string    `json:"name"`
+	Source        string    `json:"source"` // e.g. "steam"; matches library.Source
+	// ConfigPath is the local file the settings below were read from. It's
+	// excluded from JSON deliberately: under the user's home directory (the
+	// common case -- e.g. ~/Library/Preferences/... on macOS), it embeds
+	// their OS username, and a GameProfile is meant to be shared, not kept
+	// local like the raw hardware snapshot. It's still populated for
+	// in-process use (logging, error messages).
+	ConfigPath string        `json:"-"`
+	Settings   TitleSettings `json:"settings"`
 }
 
 // TitleSettings is the full set of graphics settings collected for a
