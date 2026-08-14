@@ -7,7 +7,7 @@ import (
 	"github.com/alteredtech/frameshare-collector/internal/library"
 )
 
-// protonAppDataPath resolves the path a Windows-only Steam title's config
+// ProtonAppDataPath resolves the path a Windows-only Steam title's config
 // would live at under its Proton prefix on Linux: Steam runs the title in
 // a per-app "compatdata" prefix that mirrors a fresh Windows user profile,
 // so anything the title would normally write to
@@ -16,8 +16,9 @@ import (
 //
 // game.InstallPath is "<library>/steamapps/common/<installdir>" (see
 // library.parseAppManifest); compatdata is a sibling of common under the
-// same steamapps directory.
-func protonAppDataPath(game library.Game, rel string) (string, error) {
+// same steamapps directory. Engine subpackages (e.g. unreal) call this for
+// titles that don't ship a native Linux build.
+func ProtonAppDataPath(game library.Game, rel string) (string, error) {
 	if game.AppID == "" {
 		return "", fmt.Errorf("no Steam app id for %s, can't locate its Proton prefix", game.Name)
 	}

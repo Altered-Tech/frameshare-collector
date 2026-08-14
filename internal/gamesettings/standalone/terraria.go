@@ -1,4 +1,9 @@
-package gamesettings
+// Package standalone holds gamesettings.Parser implementations for titles
+// that don't share a config format/engine with any other supported title
+// (yet) -- so, unlike unreal or source, there's no shared per-engine file
+// here. If a second title ever turns up using the same format as one of
+// these, split it into its own package the way unreal/source did.
+package standalone
 
 import (
 	"encoding/json"
@@ -7,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/alteredtech/frameshare-collector/internal/gamesettings"
 	"github.com/alteredtech/frameshare-collector/internal/library"
 )
 
@@ -14,7 +20,7 @@ import (
 const terrariaAppID = "105600"
 
 func init() {
-	register(terrariaParser{})
+	gamesettings.Register(terrariaParser{})
 }
 
 // terrariaParser reads Terraria's config.json, a plain JSON file FNA
@@ -54,21 +60,21 @@ type terrariaConfig struct {
 	GraphicsQuality  int  `json:"GraphicsQuality"`
 }
 
-func (terrariaParser) Parse(data []byte) (TitleSettings, error) {
+func (terrariaParser) Parse(data []byte) (gamesettings.TitleSettings, error) {
 	var cfg terrariaConfig
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return TitleSettings{}, fmt.Errorf("decoding Terraria config.json: %w", err)
+		return gamesettings.TitleSettings{}, fmt.Errorf("decoding Terraria config.json: %w", err)
 	}
 
-	var settings TitleSettings
-	settings.Display.Resolution = Resolution{WidthPx: cfg.DisplayWidth, HeightPx: cfg.DisplayHeight}
+	var settings gamesettings.TitleSettings
+	settings.Display.Resolution = gamesettings.Resolution{WidthPx: cfg.DisplayWidth, HeightPx: cfg.DisplayHeight}
 	switch {
 	case cfg.WindowBorderless:
-		settings.Display.WindowMode = WindowBorderless
+		settings.Display.WindowMode = gamesettings.WindowBorderless
 	case cfg.Fullscreen:
-		settings.Display.WindowMode = WindowFullscreen
+		settings.Display.WindowMode = gamesettings.WindowFullscreen
 	default:
-		settings.Display.WindowMode = WindowWindowed
+		settings.Display.WindowMode = gamesettings.WindowWindowed
 	}
 	settings.GraphicsPreset = terrariaQualityLabel(cfg.GraphicsQuality)
 

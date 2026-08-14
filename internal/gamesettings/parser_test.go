@@ -9,17 +9,36 @@ import (
 	"github.com/alteredtech/frameshare-collector/internal/library"
 )
 
-func TestCollectTeamFortress2(t *testing.T) {
+// fakeParser is a minimal Parser used to test Register/Collect/Supported
+// without depending on any real title package (those live in
+// subpackages -- unreal, source, standalone -- that import this package,
+// so this package can't import them back).
+type fakeParser struct {
+	appID string
+}
+
+func (p fakeParser) Matches(game library.Game, source library.Source) bool {
+	return source == library.SourceSteam && game.AppID == p.appID
+}
+
+func (fakeParser) ConfigPath(game library.Game) (string, error) {
+	return filepath.Join(game.InstallPath, "settings.json"), nil
+}
+
+func (fakeParser) Parse(data []byte) (TitleSettings, error) {
+	return TitleSettings{GraphicsPreset: string(data)}, nil
+}
+
+func TestRegisterCollectSupported(t *testing.T) {
+	const appID = "999999901"
+	Register(fakeParser{appID: appID})
+
 	installPath := t.TempDir()
-	cfgPath := filepath.Join(installPath, "tf", "cfg", "video.txt")
-	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
-	}
-	if err := os.WriteFile(cfgPath, []byte(tf2VideoTxt), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(installPath, "settings.json"), []byte("High"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	game := library.Game{AppID: tf2AppID, Name: "Team Fortress 2", InstallPath: installPath}
+	game := library.Game{AppID: appID, Name: "Fake Game", InstallPath: installPath}
 	if !Supported(game, library.SourceSteam) {
 		t.Fatal("Supported() = false, want true for a registered app id")
 	}
@@ -28,14 +47,14 @@ func TestCollectTeamFortress2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Collect() error = %v", err)
 	}
-	if profile.ConfigPath != cfgPath {
-		t.Errorf("ConfigPath = %q, want %q", profile.ConfigPath, cfgPath)
+	if profile.ConfigPath != filepath.Join(installPath, "settings.json") {
+		t.Errorf("ConfigPath = %q, want %q", profile.ConfigPath, filepath.Join(installPath, "settings.json"))
 	}
-	if profile.Name != "Team Fortress 2" || profile.AppID != tf2AppID || profile.Source != string(library.SourceSteam) {
+	if profile.Name != "Fake Game" || profile.AppID != appID || profile.Source != string(library.SourceSteam) {
 		t.Errorf("profile = %#v, want matching Name/AppID/Source", profile)
 	}
-	if profile.Settings.Display.Resolution.WidthPx != 1920 {
-		t.Errorf("Settings.Display.Resolution.WidthPx = %d, want 1920", profile.Settings.Display.Resolution.WidthPx)
+	if profile.Settings.GraphicsPreset != "High" {
+		t.Errorf("Settings.GraphicsPreset = %q, want %q", profile.Settings.GraphicsPreset, "High")
 	}
 	if profile.ParserVersion != ParserVersion {
 		t.Errorf("ParserVersion = %q, want %q", profile.ParserVersion, ParserVersion)
@@ -55,7 +74,10 @@ func TestCollectUnsupportedTitle(t *testing.T) {
 }
 
 func TestCollectMissingConfigFile(t *testing.T) {
-	game := library.Game{AppID: tf2AppID, Name: "Team Fortress 2", InstallPath: t.TempDir()}
+	const appID = "999999902"
+	Register(fakeParser{appID: appID})
+
+	game := library.Game{AppID: appID, Name: "Fake Game", InstallPath: t.TempDir()}
 	if _, err := Collect(game, library.SourceSteam); err == nil {
 		t.Error("Collect() error = nil, want error when the config file was never written")
 	}

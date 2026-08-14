@@ -4,12 +4,15 @@
 // internal/hardware/snapshot.go: GameProfile is the full per-title report,
 // TitleSettings is the settings payload within it.
 //
-// Each supported title implements Parser in its own file (see stray.go,
-// terraria.go, teamfortress2.go) and registers it; Collect finds the
-// right one for an installed game and runs it. A title with no registered
-// Parser yields ErrTitleUnsupported -- the initial set covers a handful
-// of titles chosen for having accessible, well-documented config formats,
-// not every installed game.
+// Each supported title implements Parser and registers it (via Register)
+// from a subpackage grouped by engine/config format -- unreal, source,
+// standalone -- rather than piling every title's file into this package
+// directly, since the supported-title list is expected to grow into the
+// hundreds; see internal/gamesettings/all to pull in every one of them at
+// once. Collect finds the right Parser for an installed game and runs it.
+// A title with no registered Parser yields ErrTitleUnsupported -- the
+// initial set covers a handful of titles chosen for having accessible,
+// well-documented config formats, not every installed game.
 package gamesettings
 
 import "time"

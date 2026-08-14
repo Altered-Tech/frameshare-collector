@@ -19,9 +19,11 @@ const ParserVersion = "1"
 // matches the given game.
 var ErrTitleUnsupported = errors.New("gamesettings: no parser for this title")
 
-// Parser extracts TitleSettings from one title's local config file. Each
-// supported title implements one and registers it via register() in its
-// own file (see stray.go, terraria.go, teamfortress2.go).
+// Parser extracts TitleSettings from one title's local config file. Titles
+// are grouped by engine/format into their own subpackages (unreal,
+// source, standalone -- see internal/gamesettings/all for the full list);
+// each title implements Parser and registers itself via Register() in its
+// package's init().
 type Parser interface {
 	// Matches reports whether this parser handles game.
 	Matches(game library.Game, source library.Source) bool
@@ -35,10 +37,13 @@ type Parser interface {
 }
 
 // parsers is the set of registered per-title Parsers, populated by each
-// title file's init().
+// title package's init() calling Register.
 var parsers []Parser
 
-func register(p Parser) {
+// Register adds p to the set of Parsers Collect and Supported search.
+// Title packages call this from an init() function; see
+// internal/gamesettings/unreal/stray.go for an example.
+func Register(p Parser) {
 	parsers = append(parsers, p)
 }
 

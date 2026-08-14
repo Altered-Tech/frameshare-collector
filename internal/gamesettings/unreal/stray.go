@@ -1,16 +1,19 @@
-package gamesettings
+package unreal
 
-import "github.com/alteredtech/frameshare-collector/internal/library"
+import (
+	"github.com/alteredtech/frameshare-collector/internal/gamesettings"
+	"github.com/alteredtech/frameshare-collector/internal/library"
+)
 
 // strayAppID is Stray's Steam app id (store.steampowered.com/app/1332010).
 const strayAppID = "1332010"
 
 // strayConfigFolder is the name Unreal saves Stray's config under; see
-// unrealConfigPath.
+// configPath.
 const strayConfigFolder = "Stray"
 
 func init() {
-	register(strayParser{})
+	gamesettings.Register(strayParser{})
 }
 
 // strayParser reads Stray's GameUserSettings.ini (see unreal.go for the
@@ -22,9 +25,9 @@ func (strayParser) Matches(game library.Game, source library.Source) bool {
 }
 
 func (strayParser) ConfigPath(game library.Game) (string, error) {
-	return unrealConfigPath(strayConfigFolder, game)
+	return configPath(strayConfigFolder, game)
 }
 
-func (strayParser) Parse(data []byte) (TitleSettings, error) {
-	return parseUnrealGameUserSettings(data)
+func (strayParser) Parse(data []byte) (gamesettings.TitleSettings, error) {
+	return parseGameUserSettings(data)
 }

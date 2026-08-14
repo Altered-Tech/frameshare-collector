@@ -1,6 +1,21 @@
-package gamesettings
+package standalone
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/alteredtech/frameshare-collector/internal/gamesettings"
+	"github.com/alteredtech/frameshare-collector/internal/library"
+)
+
+func TestTerrariaMatches(t *testing.T) {
+	p := terrariaParser{}
+	if !p.Matches(library.Game{AppID: terrariaAppID}, library.SourceSteam) {
+		t.Error("Matches() = false, want true for Terraria's app id")
+	}
+	if p.Matches(library.Game{AppID: "0"}, library.SourceSteam) {
+		t.Error("Matches() = true, want false for a different app id")
+	}
+}
 
 func TestTerrariaParserParse(t *testing.T) {
 	input := `{
@@ -14,10 +29,10 @@ func TestTerrariaParserParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	want := TitleSettings{
-		Display: DisplaySettings{
-			Resolution: Resolution{WidthPx: 1920, HeightPx: 1080},
-			WindowMode: WindowFullscreen,
+	want := gamesettings.TitleSettings{
+		Display: gamesettings.DisplaySettings{
+			Resolution: gamesettings.Resolution{WidthPx: 1920, HeightPx: 1080},
+			WindowMode: gamesettings.WindowFullscreen,
 		},
 		GraphicsPreset: "High",
 	}
@@ -32,8 +47,8 @@ func TestTerrariaParserParseBorderless(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if got.Display.WindowMode != WindowBorderless {
-		t.Errorf("Display.WindowMode = %q, want %q", got.Display.WindowMode, WindowBorderless)
+	if got.Display.WindowMode != gamesettings.WindowBorderless {
+		t.Errorf("Display.WindowMode = %q, want %q", got.Display.WindowMode, gamesettings.WindowBorderless)
 	}
 	if got.GraphicsPreset != "Off" {
 		t.Errorf("GraphicsPreset = %q, want %q", got.GraphicsPreset, "Off")
