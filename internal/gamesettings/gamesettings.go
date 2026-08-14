@@ -1,12 +1,18 @@
-// Package gamesettings defines the data model for graphics settings
-// extracted from a game's local configuration files (resolution, graphics
-// preset, upscaling mode, ray tracing). It follows the
-// Snapshot/DeviceInfo pattern used in internal/hardware/snapshot.go:
-// GameProfile is the full per-title report, TitleSettings is the settings
-// payload within it.
+// Package gamesettings extracts graphics settings (resolution, graphics
+// preset, upscaling mode, ray tracing) from a game's local configuration
+// files. It follows the Snapshot/DeviceInfo pattern used in
+// internal/hardware/snapshot.go: GameProfile is the full per-title report,
+// TitleSettings is the settings payload within it.
 //
-// Extraction itself (per-title parsers reading each game's config format)
-// is out of scope here; this package only defines the shape of the result.
+// Each supported title implements Parser and registers it (via Register)
+// from a subpackage grouped by engine/config format -- unreal, source,
+// standalone -- rather than piling every title's file into this package
+// directly, since the supported-title list is expected to grow into the
+// hundreds; see internal/gamesettings/all to pull in every one of them at
+// once. Collect finds the right Parser for an installed game and runs it.
+// A title with no registered Parser yields ErrTitleUnsupported -- the
+// initial set covers a handful of titles chosen for having accessible,
+// well-documented config formats, not every installed game.
 package gamesettings
 
 import "time"
@@ -15,13 +21,19 @@ import "time"
 // title, keyed to the library entry (see internal/library.Game) it was
 // parsed from.
 type GameProfile struct {
-	ParserVersion string        `json:"parser_version"`
-	ParsedAt      time.Time     `json:"parsed_at"`
-	AppID         string        `json:"app_id,omitempty"`
-	Name          string        `json:"name"`
-	Source        string        `json:"source"` // e.g. "steam"; matches library.Source
-	ConfigPath    string        `json:"config_path,omitempty"`
-	Settings      TitleSettings `json:"settings"`
+	ParserVersion string    `json:"parser_version"`
+	ParsedAt      time.Time `json:"parsed_at"`
+	AppID         string    `json:"app_id,omitempty"`
+	Name          string    `json:"name"`
+	Source        string    `json:"source"` // e.g. "steam"; matches library.Source
+	// ConfigPath is the local file the settings below were read from. It's
+	// excluded from JSON deliberately: under the user's home directory (the
+	// common case -- e.g. ~/Library/Preferences/... on macOS), it embeds
+	// their OS username, and a GameProfile is meant to be shared, not kept
+	// local like the raw hardware snapshot. It's still populated for
+	// in-process use (logging, error messages).
+	ConfigPath string        `json:"-"`
+	Settings   TitleSettings `json:"settings"`
 }
 
 // TitleSettings is the full set of graphics settings collected for a

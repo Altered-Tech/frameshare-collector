@@ -5,10 +5,12 @@ import (
 	"strings"
 )
 
-// parseVDF parses Valve's KeyValues ("VDF") text format, used for both
-// steamapps/libraryfolders.vdf and steamapps/appmanifest_*.acf. The format
-// is a tree of quoted-string keys mapped to either another quoted string
-// or a brace-delimited nested object:
+// ParseVDF parses Valve's KeyValues ("VDF") text format, used for
+// steamapps/libraryfolders.vdf and steamapps/appmanifest_*.acf here, and
+// more generally by other Source-engine config files (e.g. a title's
+// cfg/video.txt) that internal/gamesettings parsers read. The format is a
+// tree of quoted-string keys mapped to either another quoted string or a
+// brace-delimited nested object:
 //
 //	"AppState"
 //	{
@@ -17,7 +19,7 @@ import (
 //	}
 //
 // Values in the returned map are either string or map[string]any.
-func parseVDF(data []byte) (map[string]any, error) {
+func ParseVDF(data []byte) (map[string]any, error) {
 	p := &vdfParser{data: data}
 	obj, err := p.readObjectBody(false)
 	if err != nil {

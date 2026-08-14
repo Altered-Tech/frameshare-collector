@@ -1,6 +1,8 @@
 // Command collector detects the local machine's hardware (CPU, GPU, RAM,
-// display, OS, storage) and writes it to a local JSON file. Phase 1 is
-// local-only: no network calls, no UI.
+// display, OS, storage), and -- when -select-game picks a title with a
+// registered gamesettings.Parser -- that title's graphics settings, and
+// writes everything to a local JSON file. Phase 1 is local-only: no
+// network calls, no UI.
 package main
 
 import (
@@ -17,6 +19,8 @@ import (
 
 	"golang.org/x/term"
 
+	"github.com/alteredtech/frameshare-collector/internal/gamesettings"
+	_ "github.com/alteredtech/frameshare-collector/internal/gamesettings/all" // register every supported title's Parser
 	"github.com/alteredtech/frameshare-collector/internal/hardware"
 	"github.com/alteredtech/frameshare-collector/internal/library"
 )
@@ -27,23 +31,31 @@ import (
 var version = "dev"
 
 // snapshotOutput is the JSON shape written to disk: the hardware snapshot,
-// plus the game chosen via -select-game (if any). SelectedGame is what a
-// future game-settings collector reads to know which title to inspect and
-// where it's installed.
+// plus the game chosen via -select-game (if any) and the graphics
+// settings collected for it, if a Parser is registered for that title.
 type snapshotOutput struct {
 	hardware.Snapshot
-	SelectedGame *selectedGame `json:"selected_game,omitempty"`
+	SelectedGame *selectedGame             `json:"selected_game,omitempty"`
+	GameSettings *gamesettings.GameProfile `json:"game_settings,omitempty"`
 }
 
+// selectedGame mirrors library.Game rather than embedding it so
+// InstallPath -- which, under the user's home directory, embeds their OS
+// username -- can be left out of the JSON written to disk while still
+// being available in-process (e.g. for the printed summary). AppID, Name,
+// and SizeBytes carry no such information, so they're included as-is.
 type selectedGame struct {
-	library.Game
-	Source library.Source `json:"source,omitempty"`
+	AppID       string         `json:"app_id,omitempty"`
+	Name        string         `json:"name"`
+	SizeBytes   uint64         `json:"size_bytes,omitempty"`
+	Source      library.Source `json:"source,omitempty"`
+	InstallPath string         `json:"-"`
 }
 
 func main() {
 	outDir := flag.String("out", ".", "directory to write the snapshot JSON file to")
 	installPath := flag.String("install-path", "", "game install directory; the physical disk containing it is reported as the install drive. Ignored if -select-game is set")
-	selectGameFlag := flag.Bool("select-game", false, "list installed games and choose one (arrow keys + Enter in a terminal, or type a number); sets -install-path to its install directory and records the choice in the snapshot")
+	selectGameFlag := flag.Bool("select-game", false, "list installed games and choose one (arrow keys + Enter in a terminal, or type a number); sets -install-path to its install directory, records the choice in the snapshot, and collects its graphics settings if a parser is registered for it")
 	showVersion := flag.Bool("version", false, "print the collector version and exit")
 	flag.Parse()
 
@@ -55,6 +67,7 @@ func main() {
 	ctx := context.Background()
 
 	var selected *selectedGame
+	var gameProfile *gamesettings.GameProfile
 	if *selectGameFlag {
 		libs, err := library.Detect(ctx)
 		if err != nil {
@@ -66,8 +79,9 @@ func main() {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
-		selected = &selectedGame{Game: game, Source: source}
+		selected = &selectedGame{AppID: game.AppID, Name: game.Name, SizeBytes: game.SizeBytes, Source: source, InstallPath: game.InstallPath}
 		*installPath = game.InstallPath
+		gameProfile = collectGameSettings(game, source)
 	}
 
 	snap, err := hardware.Collect(ctx, *installPath)
@@ -77,7 +91,7 @@ func main() {
 	}
 	snap.CollectorVersion = version
 
-	out := snapshotOutput{Snapshot: snap, SelectedGame: selected}
+	out := snapshotOutput{Snapshot: snap, SelectedGame: selected, GameSettings: gameProfile}
 	data, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error marshaling snapshot: %v\n", err)
@@ -92,7 +106,26 @@ func main() {
 	}
 
 	fmt.Printf("Hardware snapshot written to %s\n\n", outPath)
-	printSummary(snap, selected)
+	printSummary(snap, selected, gameProfile)
+}
+
+// collectGameSettings runs the gamesettings.Parser registered for game, if
+// any. A title with no registered parser, or one whose config file can't
+// be read yet (most commonly because it has never been launched, so it
+// hasn't written one), is not a fatal error -- it's reported as a warning
+// and the snapshot is written without game settings, the same way
+// hardware.Collect tolerates missing OS tooling.
+func collectGameSettings(game library.Game, source library.Source) *gamesettings.GameProfile {
+	if !gamesettings.Supported(game, source) {
+		fmt.Fprintf(os.Stderr, "note: no settings parser registered for %s, skipping game settings\n", game.Name)
+		return nil
+	}
+	profile, err := gamesettings.Collect(game, source)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not collect settings for %s: %v\n", game.Name, err)
+		return nil
+	}
+	return profile
 }
 
 // gameEntry pairs an installed Game with the Library it came from, flattened
@@ -164,7 +197,7 @@ func numberedGamePicker(entries []gameEntry, in io.Reader, out io.Writer) (int, 
 	return choice - 1, nil
 }
 
-func printSummary(snap hardware.Snapshot, selected *selectedGame) {
+func printSummary(snap hardware.Snapshot, selected *selectedGame, gameProfile *gamesettings.GameProfile) {
 	fmt.Printf("Version: %s\n", snap.CollectorVersion)
 	fmt.Printf("Device:  %s %s%s\n", snap.Device.Vendor, snap.Device.Model, handheldLabel(snap.Device.KnownHandheld))
 	fmt.Printf("OS:      %s %s (%s, %s)\n", snap.OS.Name, snap.OS.Version, snap.OS.Platform, snap.OS.Arch)
@@ -181,7 +214,29 @@ func printSummary(snap hardware.Snapshot, selected *selectedGame) {
 	}
 	if selected != nil {
 		fmt.Printf("Game:    %s [%s] -> %s\n", selected.Name, selected.Source, selected.InstallPath)
+		printGameSettings(gameProfile)
 	}
+}
+
+// printGameSettings prints the graphics settings collected for the
+// selected game, if any were. profile is nil when no parser is
+// registered for the title, or its config file couldn't be read (see
+// collectGameSettings); a warning explaining why was already printed to
+// stderr at collection time, so this just notes their absence here.
+func printGameSettings(profile *gamesettings.GameProfile) {
+	if profile == nil {
+		fmt.Println("Settings: not collected")
+		return
+	}
+	s := profile.Settings
+	fmt.Printf("Settings: %dx%d %s%s\n", s.Display.Resolution.WidthPx, s.Display.Resolution.HeightPx, s.Display.WindowMode, presetLabel(s.GraphicsPreset))
+}
+
+func presetLabel(preset string) string {
+	if preset == "" {
+		return ""
+	}
+	return fmt.Sprintf(", %s preset", preset)
 }
 
 func primaryLabel(isPrimary bool) string {
