@@ -16,9 +16,9 @@ func TestParseVDF(t *testing.T) {
 	}
 }
 `
-	got, err := parseVDF([]byte(input))
+	got, err := ParseVDF([]byte(input))
 	if err != nil {
-		t.Fatalf("parseVDF() error = %v", err)
+		t.Fatalf("ParseVDF() error = %v", err)
 	}
 	want := map[string]any{
 		"AppState": map[string]any{
@@ -30,19 +30,19 @@ func TestParseVDF(t *testing.T) {
 		},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("parseVDF() = %#v, want %#v", got, want)
+		t.Errorf("ParseVDF() = %#v, want %#v", got, want)
 	}
 }
 
 func TestParseVDFEscapes(t *testing.T) {
 	input := `"path"		"C:\\Program Files (x86)\\Steam"` + "\n"
-	got, err := parseVDF([]byte(input))
+	got, err := ParseVDF([]byte(input))
 	if err != nil {
-		t.Fatalf("parseVDF() error = %v", err)
+		t.Fatalf("ParseVDF() error = %v", err)
 	}
 	want := map[string]any{"path": `C:\Program Files (x86)\Steam`}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("parseVDF() = %#v, want %#v", got, want)
+		t.Errorf("ParseVDF() = %#v, want %#v", got, want)
 	}
 }
 
@@ -54,8 +54,8 @@ func TestParseVDFErrors(t *testing.T) {
 	}
 	for name, input := range cases {
 		t.Run(name, func(t *testing.T) {
-			if _, err := parseVDF([]byte(input)); err == nil {
-				t.Errorf("parseVDF(%q) error = nil, want error", input)
+			if _, err := ParseVDF([]byte(input)); err == nil {
+				t.Errorf("ParseVDF(%q) error = nil, want error", input)
 			}
 		})
 	}

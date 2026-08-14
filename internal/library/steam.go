@@ -50,7 +50,7 @@ func steamLibraryPaths(root string) ([]string, error) {
 		return nil, err
 	}
 
-	parsed, err := parseVDF(data)
+	parsed, err := ParseVDF(data)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func steamGamesIn(libraryPath string) ([]Game, error) {
 // manifest is relative to <steamappsDir>/common; it's resolved to an
 // absolute path here.
 func parseAppManifest(data []byte, steamappsDir string) (Game, bool) {
-	parsed, err := parseVDF(data)
+	parsed, err := ParseVDF(data)
 	if err != nil {
 		return Game{}, false
 	}

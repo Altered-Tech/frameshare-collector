@@ -1,12 +1,15 @@
-// Package gamesettings defines the data model for graphics settings
-// extracted from a game's local configuration files (resolution, graphics
-// preset, upscaling mode, ray tracing). It follows the
-// Snapshot/DeviceInfo pattern used in internal/hardware/snapshot.go:
-// GameProfile is the full per-title report, TitleSettings is the settings
-// payload within it.
+// Package gamesettings extracts graphics settings (resolution, graphics
+// preset, upscaling mode, ray tracing) from a game's local configuration
+// files. It follows the Snapshot/DeviceInfo pattern used in
+// internal/hardware/snapshot.go: GameProfile is the full per-title report,
+// TitleSettings is the settings payload within it.
 //
-// Extraction itself (per-title parsers reading each game's config format)
-// is out of scope here; this package only defines the shape of the result.
+// Each supported title implements Parser in its own file (see stray.go,
+// terraria.go, teamfortress2.go) and registers it; Collect finds the
+// right one for an installed game and runs it. A title with no registered
+// Parser yields ErrTitleUnsupported -- the initial set covers a handful
+// of titles chosen for having accessible, well-documented config formats,
+// not every installed game.
 package gamesettings
 
 import "time"
