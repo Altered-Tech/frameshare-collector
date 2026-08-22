@@ -26,6 +26,11 @@ type GameProfile struct {
 	AppID         string    `json:"app_id,omitempty"`
 	Name          string    `json:"name"`
 	Source        string    `json:"source"` // e.g. "steam"; matches library.Source
+	// ProtonVersion is the Proton compatibility tool Steam ran this title
+	// with, populated only when ConfigPath was actually resolved from
+	// inside a Proton prefix (see ProtonVersion in path.go) -- empty for
+	// native and non-Linux profiles.
+	ProtonVersion string `json:"proton_version,omitempty"`
 	// ConfigPath is the local file the settings below were read from. It's
 	// excluded from JSON deliberately: under the user's home directory (the
 	// common case -- e.g. ~/Library/Preferences/... on macOS), it embeds
