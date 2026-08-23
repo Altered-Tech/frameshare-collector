@@ -20,11 +20,34 @@ jobs:
         with:
           go-version: "1.26"
 
+      - name: Install SDL2 + Fyne native dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y gcc pkg-config libsdl2-dev libgl1-mesa-dev xorg-dev
+
+      - name: Install SDL2 (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install pkg-config sdl2
+
+      # cmd/gui-spike and internal/controllerinput need SDL2 dev headers,
+      # which aren't wired up for windows-latest yet -- see #32. Vet/test
+      # everything else there so that work isn't blocked on it.
       - name: Vet
+        if: matrix.os != 'windows-latest'
         run: go vet ./...
 
+      - name: Vet (windows, excluding SDL2-dependent packages)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: go vet $(go list ./... | grep -v -e cmd/gui-spike -e internal/controllerinput)
+
       - name: Test
+        if: matrix.os != 'windows-latest'
         run: go test ./...
+
+      - name: Test (windows, excluding SDL2-dependent packages)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: go test $(go list ./... | grep -v -e cmd/gui-spike -e internal/controllerinput)
 
   build:
     runs-on: ubuntu-latest
@@ -54,7 +77,11 @@ jobs:
           go-version: "1.26"
 
       - name: Vet
-        run: go vet ./...
+        # This job only builds cmd/collector's release binaries, and does so
+        # with CGO_ENABLED=0 -- scope vet to match. The full module (which
+        # now includes cgo-based Fyne/SDL2 packages, see #36) is vetted by
+        # the test job above instead.
+        run: go vet ./cmd/collector/...
 
       - name: Build
         env:

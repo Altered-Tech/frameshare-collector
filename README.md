@@ -6,6 +6,9 @@
 - Linux only: `lspci` and `xrandr` on `PATH` for GPU/display detection
   (usually already present on desktop distros; may be missing on a bare
   Wayland-only setup)
+- Only for `cmd/gui-spike` (see below): SDL2 development headers
+  (`libsdl2-dev` on Linux, `brew install sdl2` on macOS). `cmd/collector`
+  has no such requirement.
 
 ## Build
 
@@ -32,6 +35,19 @@ Use `-out` to choose a different output directory:
 
 ```sh
 ./collector -out ~/Desktop
+```
+
+## GUI navigation spike
+
+`cmd/gui-spike` is a throwaway Fyne app (see #7's framework decision and
+#36) that proves out gamepad-driven navigation before more UI work builds
+on it: a `List` standing in for the game library, plus an `Entry` and
+`Button` standing in for the auth flow, all navigable with a controller
+via `internal/controllerinput`'s SDL2-based input translation, alongside
+unmodified mouse/keyboard support.
+
+```sh
+go run ./cmd/gui-spike
 ```
 
 ## Releases
