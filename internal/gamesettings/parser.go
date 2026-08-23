@@ -84,6 +84,7 @@ func Collect(game library.Game, source library.Source) (*GameProfile, error) {
 		AppID:         game.AppID,
 		Name:          game.Name,
 		Source:        string(source),
+		ProtonVersion: ProtonVersion(game, path),
 		ConfigPath:    path,
 		Settings:      settings,
 	}, nil
