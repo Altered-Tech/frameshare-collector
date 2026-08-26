@@ -217,16 +217,22 @@ func (p *Poller) run() {
 			case *sdl.ControllerDeviceEvent:
 				p.handleDeviceEvent(e, controllers)
 			case *sdl.ControllerButtonEvent:
+				p.logf("raw button event: controller=%d button=%d state=%s", e.Which, e.Button, buttonStateName(e.State))
 				if e.State != sdl.PRESSED {
 					continue
 				}
 				if action, ok := ButtonAction(sdl.GameControllerButton(e.Button)); ok {
+					p.logf("-> emitting %s", action)
 					p.emit(action)
 				}
 			case *sdl.ControllerAxisEvent:
 				key := axisKey{controller: e.Which, axis: sdl.GameControllerAxis(e.Axis)}
 				action, active := AxisAction(sdl.GameControllerAxis(e.Axis), e.Value)
+				if active != axisActive[key] {
+					p.logf("raw axis edge: controller=%d axis=%d value=%d active=%v", e.Which, e.Axis, e.Value, active)
+				}
 				if active && !axisActive[key] {
+					p.logf("-> emitting %s", action)
 					p.emit(action)
 				}
 				axisActive[key] = active
@@ -257,6 +263,13 @@ func (p *Poller) handleDeviceEvent(e *sdl.ControllerDeviceEvent, controllers map
 			delete(controllers, e.Which)
 		}
 	}
+}
+
+func buttonStateName(state uint8) string {
+	if state == sdl.PRESSED {
+		return "pressed"
+	}
+	return "released"
 }
 
 func (p *Poller) emit(a Action) {

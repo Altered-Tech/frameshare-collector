@@ -78,8 +78,16 @@ func main() {
 	focusIndex := 0
 	w.Canvas().Focus(focusables[focusIndex])
 	cycleFocus := func(delta int) {
+		old := focusIndex
 		focusIndex = (focusIndex + delta + len(focusables)) % len(focusables)
 		w.Canvas().Focus(focusables[focusIndex])
+		// If canvas.Focused()'s type doesn't match focusables[focusIndex],
+		// something outside cycleFocus (e.g. a real Tab/Shift+Tab keypress
+		// driving Fyne's own internal FocusNext/FocusPrevious -- see
+		// window.capturesTab in Fyne's glfw driver) is also moving focus,
+		// desyncing our tracked index from Fyne's actual state.
+		log.Printf("cycleFocus(%+d): index %d -> %d (expect focus type %T); canvas.Focused() actually reports %T",
+			delta, old, focusIndex, focusables[focusIndex], w.Canvas().Focused())
 	}
 
 	poller, err := controllerinput.NewPoller(log.Printf)
@@ -90,6 +98,7 @@ func main() {
 
 	go func() {
 		for action := range poller.Actions() {
+			log.Printf("dispatching action: %s", action)
 			fyne.Do(func() {
 				dispatchAction(w.Canvas(), cycleFocus, action)
 			})
