@@ -9,7 +9,11 @@
 // synthetic key event against whatever widget currently has focus, using
 // Fyne's own focus system (List/Entry/Button all already handle arrow
 // keys and Space) instead of building gamepad-aware navigation from
-// scratch. Mouse and keyboard are untouched: Fyne handles those natively.
+// scratch. Since List/Entry consume Up/Down/Left/Right themselves rather
+// than yielding focus to a sibling widget, the shoulder buttons are wired
+// to Fyne's Canvas.FocusNext/FocusPrevious directly to move between the
+// List, Entry, and Button. Mouse and keyboard are untouched: Fyne handles
+// those natively.
 package main
 
 import (
@@ -50,6 +54,7 @@ func main() {
 
 	authEntry := widget.NewPasswordEntry()
 	authEntry.SetPlaceHolder("Auth token (Steam+X for on-screen keyboard)")
+	hint := widget.NewLabel("D-pad/stick: navigate  |  A: activate  |  LB/RB: switch field")
 
 	status := widget.NewLabel("Select a game and enter a token, then confirm.")
 	confirm := widget.NewButton("Confirm", func() {
@@ -60,11 +65,11 @@ func main() {
 		status.SetText(fmt.Sprintf("Confirmed: %s", fakeGames[selected]))
 	})
 
-	w.SetContent(container.NewBorder(nil, container.NewVBox(authEntry, confirm, status), nil, nil, gameList))
+	w.SetContent(container.NewBorder(nil, container.NewVBox(authEntry, confirm, status, hint), nil, nil, gameList))
 	w.Resize(fyne.NewSize(480, 360))
 	w.Canvas().Focus(gameList)
 
-	poller, err := controllerinput.NewPoller()
+	poller, err := controllerinput.NewPoller(log.Printf)
 	if err != nil {
 		log.Fatalf("controller input unavailable: %v", err)
 	}
@@ -81,13 +86,23 @@ func main() {
 	w.ShowAndRun()
 }
 
-// dispatchAction replays action as a synthetic key event against whatever
-// widget currently has focus. It relies entirely on Fyne's existing
-// widgets already knowing how to handle these keys (List moves its
-// highlight on Up/Down and selects on Space; Button activates on Space) --
-// see #33's scope note about relying on defaults vs. explicit
-// FocusNext/FocusPrevious wiring.
+// dispatchAction replays action against the canvas: FocusNext/FocusPrevious
+// move focus between sibling widgets directly (Fyne's Tab-based focus
+// cycling isn't reachable by replaying a key event -- it lives above
+// TypedKey handling), and every other action is replayed as a synthetic
+// key event against whatever widget currently has focus, relying on
+// Fyne's existing widgets to know how to handle it (List moves its
+// highlight on Up/Down and selects on Space; Button activates on Space).
 func dispatchAction(canvas fyne.Canvas, action controllerinput.Action) {
+	switch action {
+	case controllerinput.ActionFocusNext:
+		canvas.FocusNext()
+		return
+	case controllerinput.ActionFocusPrevious:
+		canvas.FocusPrevious()
+		return
+	}
+
 	key := actionKey(action)
 	if key == "" {
 		return

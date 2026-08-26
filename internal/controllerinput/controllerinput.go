@@ -26,6 +26,16 @@ const (
 	ActionLeft
 	ActionRight
 	ActionActivate
+	// ActionFocusNext and ActionFocusPrevious move focus between sibling
+	// widgets (e.g. from the game List to the auth Entry to the Confirm
+	// Button). They exist separately from the directional actions because
+	// widgets like List and Entry consume Up/Down/Left/Right themselves
+	// (moving a highlight or a text cursor) rather than yielding focus --
+	// Fyne's own Tab-based focus-cycling lives one level above a widget's
+	// TypedKey handling, so a caller has to invoke it explicitly (see
+	// fyne.Canvas.FocusNext/FocusPrevious) rather than by replaying a key.
+	ActionFocusNext
+	ActionFocusPrevious
 )
 
 func (a Action) String() string {
@@ -40,6 +50,10 @@ func (a Action) String() string {
 		return "right"
 	case ActionActivate:
 		return "activate"
+	case ActionFocusNext:
+		return "focus-next"
+	case ActionFocusPrevious:
+		return "focus-previous"
 	default:
 		return fmt.Sprintf("unknown action %d", int(a))
 	}
@@ -54,7 +68,10 @@ const axisThreshold = 16000
 // represents, if any. D-pad directions map to their matching directional
 // Action; the south face button (A on an Xbox-layout pad, Cross on
 // PlayStation, and what Steam Input reports for Steam Deck's south face
-// button) maps to Activate. Every other button is unmapped for now.
+// button) maps to Activate; the shoulder buttons cycle focus between
+// widgets, since D-pad/stick directions alone can't escape a widget that
+// consumes them internally (see ActionFocusNext). Every other button is
+// unmapped for now.
 func ButtonAction(button sdl.GameControllerButton) (Action, bool) {
 	switch button {
 	case sdl.CONTROLLER_BUTTON_DPAD_UP:
@@ -67,6 +84,10 @@ func ButtonAction(button sdl.GameControllerButton) (Action, bool) {
 		return ActionRight, true
 	case sdl.CONTROLLER_BUTTON_A:
 		return ActionActivate, true
+	case sdl.CONTROLLER_BUTTON_RIGHTSHOULDER:
+		return ActionFocusNext, true
+	case sdl.CONTROLLER_BUTTON_LEFTSHOULDER:
+		return ActionFocusPrevious, true
 	default:
 		return 0, false
 	}
@@ -114,12 +135,21 @@ type Poller struct {
 	actions chan Action
 	quit    chan struct{}
 	done    chan struct{}
+	logf    func(format string, args ...any)
 }
 
 // NewPoller initializes SDL's controller subsystem and starts polling for
-// input. Call Close when done to stop the goroutine and release SDL
-// resources.
-func NewPoller() (*Poller, error) {
+// input. logf receives one line per controller connect/disconnect (pass
+// nil to discard them) -- this is the tool for diagnosing setups where a
+// single physical pad shows up as more than one SDL device (e.g. Steam
+// Input on Steam Deck can expose both a raw HID interface and a virtual
+// emulated controller for the same hardware), which would otherwise
+// silently double-fire every Action without any other visible symptom.
+// Call Close when done to stop the goroutine and release SDL resources.
+func NewPoller(logf func(format string, args ...any)) (*Poller, error) {
+	if logf == nil {
+		logf = func(string, ...any) {}
+	}
 	if err := sdl.InitSubSystem(sdl.INIT_GAMECONTROLLER); err != nil {
 		return nil, fmt.Errorf("init SDL game controller subsystem: %w", err)
 	}
@@ -128,6 +158,7 @@ func NewPoller() (*Poller, error) {
 		actions: make(chan Action, 16),
 		quit:    make(chan struct{}),
 		done:    make(chan struct{}),
+		logf:    logf,
 	}
 	go p.run()
 	return p, nil
@@ -218,8 +249,10 @@ func (p *Poller) handleDeviceEvent(e *sdl.ControllerDeviceEvent, controllers map
 		}
 		id := c.Joystick().InstanceID()
 		controllers[id] = c
+		p.logf("controller connected: %q (instance %d, GUID %s) -- %d total connected", c.Name(), id, sdl.JoystickGetGUIDString(c.Joystick().GUID()), len(controllers))
 	case sdl.CONTROLLERDEVICEREMOVED:
 		if c, ok := controllers[e.Which]; ok {
+			p.logf("controller disconnected: %q (instance %d)", c.Name(), e.Which)
 			c.Close()
 			delete(controllers, e.Which)
 		}
