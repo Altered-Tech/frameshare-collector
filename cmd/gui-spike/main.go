@@ -67,7 +67,20 @@ func main() {
 
 	w.SetContent(container.NewBorder(nil, container.NewVBox(authEntry, confirm, status, hint), nil, nil, gameList))
 	w.Resize(fyne.NewSize(480, 360))
-	w.Canvas().Focus(gameList)
+
+	// Cycle focus among these three widgets ourselves rather than relying
+	// on Fyne's built-in Canvas.FocusNext/FocusPrevious: in testing, that
+	// built-in Tab-order walk stopped returning to the List after the
+	// Button was activated. An explicit, fixed-order ring sidesteps
+	// whatever that internal behavior is -- reasonable for this spike's
+	// small, unchanging set of widgets.
+	focusables := []fyne.Focusable{gameList, authEntry, confirm}
+	focusIndex := 0
+	w.Canvas().Focus(focusables[focusIndex])
+	cycleFocus := func(delta int) {
+		focusIndex = (focusIndex + delta + len(focusables)) % len(focusables)
+		w.Canvas().Focus(focusables[focusIndex])
+	}
 
 	poller, err := controllerinput.NewPoller(log.Printf)
 	if err != nil {
@@ -78,7 +91,7 @@ func main() {
 	go func() {
 		for action := range poller.Actions() {
 			fyne.Do(func() {
-				dispatchAction(w.Canvas(), action)
+				dispatchAction(w.Canvas(), cycleFocus, action)
 			})
 		}
 	}()
@@ -86,20 +99,19 @@ func main() {
 	w.ShowAndRun()
 }
 
-// dispatchAction replays action against the canvas: FocusNext/FocusPrevious
-// move focus between sibling widgets directly (Fyne's Tab-based focus
-// cycling isn't reachable by replaying a key event -- it lives above
-// TypedKey handling), and every other action is replayed as a synthetic
-// key event against whatever widget currently has focus, relying on
-// Fyne's existing widgets to know how to handle it (List moves its
-// highlight on Up/Down and selects on Space; Button activates on Space).
-func dispatchAction(canvas fyne.Canvas, action controllerinput.Action) {
+// dispatchAction handles FocusNext/FocusPrevious via cycleFocus (see the
+// comment where it's built, above), and replays every other action as a
+// synthetic key event against whatever widget currently has focus,
+// relying on Fyne's existing widgets to know how to handle it (List moves
+// its highlight on Up/Down and selects on Space; Button activates on
+// Space).
+func dispatchAction(canvas fyne.Canvas, cycleFocus func(delta int), action controllerinput.Action) {
 	switch action {
 	case controllerinput.ActionFocusNext:
-		canvas.FocusNext()
+		cycleFocus(1)
 		return
 	case controllerinput.ActionFocusPrevious:
-		canvas.FocusPrevious()
+		cycleFocus(-1)
 		return
 	}
 
