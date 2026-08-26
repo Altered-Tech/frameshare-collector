@@ -2,6 +2,7 @@ package controllerinput
 
 import (
 	"testing"
+	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -76,5 +77,25 @@ func TestActionString(t *testing.T) {
 		if got := tc.action.String(); got != tc.want {
 			t.Errorf("Action(%d).String() = %q, want %q", tc.action, got, tc.want)
 		}
+	}
+}
+
+func TestDebounced(t *testing.T) {
+	last := map[string]time.Time{}
+	window := 40 * time.Millisecond
+
+	if debounced(last, "a", window) {
+		t.Error("first call for a key should not be debounced")
+	}
+	if !debounced(last, "a", window) {
+		t.Error("an immediate repeat for the same key should be debounced")
+	}
+	if debounced(last, "b", window) {
+		t.Error("a different key should not be debounced by another key's history")
+	}
+
+	time.Sleep(window + 20*time.Millisecond)
+	if debounced(last, "a", window) {
+		t.Error("a call after window has elapsed should not be debounced")
 	}
 }

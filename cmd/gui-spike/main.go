@@ -38,6 +38,8 @@ var fakeGames = []string{
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
 	a := app.NewWithID("com.alteredtech.frameshare-collector.gui-spike")
 	w := a.NewWindow("Controller Navigation Spike")
 

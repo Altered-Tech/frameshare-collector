@@ -64,6 +64,16 @@ func (a Action) String() string {
 // ignore stick drift and noise near center on worn or cheap pads.
 const axisThreshold = 16000
 
+// debounceWindow suppresses a repeat press of the same button (or the
+// same axis crossing back over its threshold) if it follows the previous
+// one too quickly. This isn't about our poll rate or event handling --
+// PollEvent drains genuinely distinct SDL events -- it's compensating for
+// switch bounce at the hardware/driver level: confirmed via raw event
+// logging during hands-on testing, a single physical D-pad tap on one
+// controller produced two or three complete CONTROLLERBUTTONDOWN/UP
+// pairs from SDL. Tune if it ever clips a deliberately fast double-tap.
+const debounceWindow = 150 * time.Millisecond
+
 // ButtonAction maps an SDL GameController button to the Action it
 // represents, if any. D-pad directions map to their matching directional
 // Action; the south face button (A on an Xbox-layout pad, Cross on
@@ -201,6 +211,12 @@ func (p *Poller) run() {
 	}()
 
 	axisActive := map[axisKey]bool{}
+	type buttonKey struct {
+		controller sdl.JoystickID
+		button     uint8
+	}
+	lastButtonPress := map[buttonKey]time.Time{}
+	lastAxisEmit := map[axisKey]time.Time{}
 
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
@@ -221,10 +237,17 @@ func (p *Poller) run() {
 				if e.State != sdl.PRESSED {
 					continue
 				}
-				if action, ok := ButtonAction(sdl.GameControllerButton(e.Button)); ok {
-					p.logf("-> emitting %s", action)
-					p.emit(action)
+				action, ok := ButtonAction(sdl.GameControllerButton(e.Button))
+				if !ok {
+					continue
 				}
+				bKey := buttonKey{controller: e.Which, button: e.Button}
+				if debounced(lastButtonPress, bKey, debounceWindow) {
+					p.logf("-> debounced (button %d pressed again within %v)", e.Button, debounceWindow)
+					continue
+				}
+				p.logf("-> emitting %s", action)
+				p.emit(action)
 			case *sdl.ControllerAxisEvent:
 				key := axisKey{controller: e.Which, axis: sdl.GameControllerAxis(e.Axis)}
 				action, active := AxisAction(sdl.GameControllerAxis(e.Axis), e.Value)
@@ -232,13 +255,29 @@ func (p *Poller) run() {
 					p.logf("raw axis edge: controller=%d axis=%d value=%d active=%v", e.Which, e.Axis, e.Value, active)
 				}
 				if active && !axisActive[key] {
-					p.logf("-> emitting %s", action)
-					p.emit(action)
+					if debounced(lastAxisEmit, key, debounceWindow) {
+						p.logf("-> debounced (axis %d re-crossed threshold within %v)", e.Axis, debounceWindow)
+					} else {
+						p.logf("-> emitting %s", action)
+						p.emit(action)
+					}
 				}
 				axisActive[key] = active
 			}
 		}
 	}
+}
+
+// debounced reports whether an event for key follows a previously
+// accepted one too closely to be a new, distinct press (see
+// debounceWindow), recording key as pressed now if not.
+func debounced[K comparable](last map[K]time.Time, key K, window time.Duration) bool {
+	now := time.Now()
+	if t, ok := last[key]; ok && now.Sub(t) < window {
+		return true
+	}
+	last[key] = now
+	return false
 }
 
 // handleDeviceEvent opens newly connected controllers and closes ones
