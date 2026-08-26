@@ -6,9 +6,14 @@
 - Linux only: `lspci` and `xrandr` on `PATH` for GPU/display detection
   (usually already present on desktop distros; may be missing on a bare
   Wayland-only setup)
-- Only for `cmd/gui-spike` (see below): SDL2 development headers
-  (`libsdl2-dev` on Linux, `brew install sdl2` on macOS). `cmd/collector`
-  has no such requirement.
+- Only for `cmd/gui-spike` (see below): a C compiler, SDL2 development
+  headers, and Fyne's own native build dependencies. `cmd/collector` has
+  no such requirement.
+  - Linux: `gcc pkg-config libsdl2-dev libgl1-mesa-dev xorg-dev libxkbcommon-dev`
+    (Debian/Ubuntu package names; `libxkbcommon-dev` is needed by GLFW's
+    keyboard handling even on X11, not just Wayland)
+  - macOS: `brew install pkg-config sdl2` (Xcode Command Line Tools cover
+    the rest)
 
 ## Build
 

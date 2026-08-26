@@ -22,7 +22,7 @@ jobs:
 
       - name: Install SDL2 + Fyne native dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y gcc pkg-config libsdl2-dev libgl1-mesa-dev xorg-dev
+        run: sudo apt-get update && sudo apt-get install -y gcc pkg-config libsdl2-dev libgl1-mesa-dev xorg-dev libxkbcommon-dev
 
       - name: Install SDL2 (macOS)
         if: matrix.os == 'macos-latest'
