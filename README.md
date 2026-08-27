@@ -55,6 +55,26 @@ unmodified mouse/keyboard support.
 go run ./cmd/gui-spike
 ```
 
+Build a standalone binary the same way (`go build`, not `make` -- the
+Makefile only targets `cmd/collector`):
+
+```sh
+go build -o gui-spike ./cmd/gui-spike
+```
+
+**On Steam Deck, launch it as a Steam game (a non-Steam game entry),
+not directly from a Desktop Mode terminal.** While the desktop session
+itself is focused, Steam's own controller configuration translates
+gamepad input (e.g. D-pad) into real, OS-level synthetic keyboard events
+system-wide, for general desktop navigation. Those arrive at the app
+independently of, and simultaneously with, this app's own SDL-based
+polling -- both end up calling the same widget's key handling, so a
+single physical press can visibly double-fire (e.g. the game list
+advancing by two entries per D-pad tap) even though this app's own
+input pipeline only sees and processes it once. Launching it as an
+actual (non-Steam) game switches the controller out of that desktop
+translation mode, leaving only this app's own SDL polling active.
+
 ## Releases
 
 Versioning and releases are automated by [semantic-release](https://github.com/semantic-release/semantic-release):
