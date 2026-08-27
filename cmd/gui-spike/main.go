@@ -54,7 +54,13 @@ func main() {
 	selected := -1
 	gameList.OnSelected = func(id widget.ListItemID) { selected = id }
 
-	authEntry := widget.NewPasswordEntry()
+	// Plain Entry, not NewPasswordEntry: this field only stands in for
+	// Entry-focus/typing testing, not real secret handling (that's out of
+	// scope here). NewPasswordEntry's reveal icon is mouse-only and has no
+	// gamepad path wired to it, and Fyne re-adds that same icon any time
+	// Password is set to true even on a manually built Entry, so there's
+	// no way to keep masking without it.
+	authEntry := widget.NewEntry()
 	authEntry.SetPlaceHolder("Auth token (Steam+X for on-screen keyboard)")
 	hint := widget.NewLabel("D-pad/stick: navigate  |  A: activate  |  LB/RB: switch field")
 
