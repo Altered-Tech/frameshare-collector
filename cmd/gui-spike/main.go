@@ -17,8 +17,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -37,8 +39,22 @@ var fakeGames = []string{
 	"Portal 2",
 }
 
+// inGamescopeSession reports whether the process is running inside a
+// gamescope compositor session -- what Steam Deck's Gaming Mode (and
+// other SteamOS/gamescope-session-based handhelds) actually runs under.
+// gamescope-session sets these two XDG variables; checking them, rather
+// than the SteamDeck=1 env var SteamOS also exports, distinguishes actual
+// Gaming Mode from Desktop Mode on the same hardware, where a windowed
+// dev/test session should stay windowed.
+func inGamescopeSession() bool {
+	return os.Getenv("XDG_CURRENT_DESKTOP") == "gamescope" || os.Getenv("XDG_SESSION_DESKTOP") == "gamescope"
+}
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+	fullscreen := flag.Bool("fullscreen", inGamescopeSession(), "launch full-screen instead of the default small window; defaults to true automatically under a gamescope session (Steam Deck Gaming Mode and similar), false elsewhere, so end users never need to set this themselves")
+	flag.Parse()
 
 	a := app.NewWithID("com.alteredtech.frameshare-collector.gui-spike")
 	w := a.NewWindow("Controller Navigation Spike")
@@ -74,7 +90,11 @@ func main() {
 	})
 
 	w.SetContent(container.NewBorder(nil, container.NewVBox(authEntry, confirm, status, hint), nil, nil, gameList))
-	w.Resize(fyne.NewSize(480, 360))
+	if *fullscreen {
+		w.SetFullScreen(true)
+	} else {
+		w.Resize(fyne.NewSize(480, 360))
+	}
 
 	// Cycle focus among these three widgets ourselves rather than relying
 	// on Fyne's built-in Canvas.FocusNext/FocusPrevious: in testing, that

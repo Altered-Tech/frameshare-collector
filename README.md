@@ -75,6 +75,34 @@ input pipeline only sees and processes it once. Launching it as an
 actual (non-Steam) game switches the controller out of that desktop
 translation mode, leaving only this app's own SDL polling active.
 
+It launches full-screen automatically under a gamescope session (Gaming
+Mode and similar SteamOS/gamescope-session-based handhelds) -- detected
+via the `XDG_CURRENT_DESKTOP`/`XDG_SESSION_DESKTOP=gamescope` env vars
+gamescope-session sets, not the `SteamDeck=1` var SteamOS also exports
+(which is present in Desktop Mode too, where a windowed dev session
+should stay windowed). No Launch Options entry needed for this. Confirmed
+on hardware: without it, the app's small default window gets pillarboxed
+by gamescope rather than stretched or auto-expanded, so an explicit
+fullscreen request is required, not optional. Pass `-fullscreen`/
+`-fullscreen=false` manually only to override the auto-detected default,
+e.g. for local testing.
+
+### Gaming Mode verification checklist (#34)
+
+Full-screen launch is confirmed working on hardware. Still to verify:
+
+- [ ] Text size, contrast, and widget scaling are legible at the Deck's
+      native 1280x800 resolution from typical Gaming Mode (couch/handheld)
+      viewing distance.
+- [ ] Fyne's default theme/scale renders sensibly with no manual DPI
+      tuning; if not, `fyne.Settings.SetScale` (or `FYNE_SCALE`) is the
+      knob to reach for.
+- [x] The window is full-screen/borderless in Gaming Mode -- confirmed,
+      via the auto-detected `-fullscreen` default (see above).
+- [ ] Focus highlighting -- the only visual indicator of which widget a
+      gamepad-only user is on -- is clearly visible from Gaming Mode
+      viewing distance.
+
 ## Releases
 
 Versioning and releases are automated by [semantic-release](https://github.com/semantic-release/semantic-release):
