@@ -18,9 +18,10 @@ func TestButtonAction(t *testing.T) {
 		{sdl.CONTROLLER_BUTTON_DPAD_LEFT, ActionLeft, true},
 		{sdl.CONTROLLER_BUTTON_DPAD_RIGHT, ActionRight, true},
 		{sdl.CONTROLLER_BUTTON_A, ActionActivate, true},
+		{sdl.CONTROLLER_BUTTON_B, ActionBack, true},
 		{sdl.CONTROLLER_BUTTON_RIGHTSHOULDER, ActionFocusNext, true},
 		{sdl.CONTROLLER_BUTTON_LEFTSHOULDER, ActionFocusPrevious, true},
-		{sdl.CONTROLLER_BUTTON_B, 0, false},
+		{sdl.CONTROLLER_BUTTON_X, 0, false},
 		{sdl.CONTROLLER_BUTTON_START, 0, false},
 	}
 	for _, tc := range tests {
@@ -71,6 +72,7 @@ func TestActionString(t *testing.T) {
 		{ActionActivate, "activate"},
 		{ActionFocusNext, "focus-next"},
 		{ActionFocusPrevious, "focus-previous"},
+		{ActionBack, "back"},
 		{Action(99), "unknown action 99"},
 	}
 	for _, tc := range tests {

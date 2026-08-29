@@ -103,6 +103,14 @@ type navigator struct {
 	// racing two collections against each other with whichever finishes
 	// last silently winning and no indication either happened.
 	busy bool
+	// onBack is invoked on ActionBack, if set. What "back" means changes
+	// with context -- return to the previous screen, cancel an
+	// in-progress field edit -- so each screen/mode sets it to whatever
+	// is correct for the state the user is currently in, rather than
+	// this being a single fixed action. nil means Back does nothing,
+	// which is correct for the first screen shown (there's nothing
+	// before it to go back to).
+	onBack func()
 }
 
 func newNavigator(w fyne.Window) *navigator {
@@ -140,6 +148,11 @@ func (n *navigator) dispatch(action controllerinput.Action) {
 		return
 	case controllerinput.ActionFocusPrevious:
 		n.cycleFocus(-1)
+		return
+	case controllerinput.ActionBack:
+		if n.onBack != nil {
+			n.onBack()
+		}
 		return
 	}
 
@@ -199,6 +212,8 @@ func detectGameEntries(ctx context.Context) ([]gameEntry, error) {
 // (plus hardwareOnlyLabel) that starts hardware/game-settings collection
 // on Activate and hands the resulting Profile to showReview.
 func (n *navigator) showGamePicker() {
+	n.onBack = nil // first screen -- nothing before it to go back to
+
 	status := widget.NewLabel("Detecting installed games...")
 	hint := widget.NewLabel("D-pad/stick: navigate  |  A: select")
 	content := container.NewBorder(nil, container.NewVBox(status, hint), nil, nil, widget.NewLabel(""))
@@ -290,8 +305,10 @@ func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
 // a read-only, controller-navigable List. Editing (#10) and confirm/save
 // (#11) are not yet wired in -- this issue (#9) is view-only.
 func (n *navigator) showReview(p *profile.Profile) {
+	n.onBack = func() { n.showGamePicker() }
+
 	fields := p.Fields()
-	hint := widget.NewLabel("D-pad/stick: browse")
+	hint := widget.NewLabel("D-pad/stick: browse  |  B: back to game list")
 
 	list := widget.NewList(
 		func() int { return len(fields) },
