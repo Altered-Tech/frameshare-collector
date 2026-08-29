@@ -75,15 +75,21 @@ input pipeline only sees and processes it once. Launching it as an
 actual (non-Steam) game switches the controller out of that desktop
 translation mode, leaving only this app's own SDL polling active.
 
-Pass `-fullscreen` when adding it as a non-Steam game (Properties ->
-Shortcut -> Launch Options: `-fullscreen`) in case gamescope, Gaming
-Mode's compositor, doesn't already force the window full-screen on its
-own -- untested either way as of #34.
+It launches full-screen automatically under a gamescope session (Gaming
+Mode and similar SteamOS/gamescope-session-based handhelds) -- detected
+via the `XDG_CURRENT_DESKTOP`/`XDG_SESSION_DESKTOP=gamescope` env vars
+gamescope-session sets, not the `SteamDeck=1` var SteamOS also exports
+(which is present in Desktop Mode too, where a windowed dev session
+should stay windowed). No Launch Options entry needed for this. Confirmed
+on hardware: without it, the app's small default window gets pillarboxed
+by gamescope rather than stretched or auto-expanded, so an explicit
+fullscreen request is required, not optional. Pass `-fullscreen`/
+`-fullscreen=false` manually only to override the auto-detected default,
+e.g. for local testing.
 
 ### Gaming Mode verification checklist (#34)
 
-Readability/scaling in Gaming Mode hasn't been checked on hardware yet.
-When testing, confirm:
+Full-screen launch is confirmed working on hardware. Still to verify:
 
 - [ ] Text size, contrast, and widget scaling are legible at the Deck's
       native 1280x800 resolution from typical Gaming Mode (couch/handheld)
@@ -91,9 +97,8 @@ When testing, confirm:
 - [ ] Fyne's default theme/scale renders sensibly with no manual DPI
       tuning; if not, `fyne.Settings.SetScale` (or `FYNE_SCALE`) is the
       knob to reach for.
-- [ ] The window is full-screen/borderless in Gaming Mode (via gamescope,
-      `-fullscreen`, or both) rather than a floating Desktop Mode-style
-      window.
+- [x] The window is full-screen/borderless in Gaming Mode -- confirmed,
+      via the auto-detected `-fullscreen` default (see above).
 - [ ] Focus highlighting -- the only visual indicator of which widget a
       gamepad-only user is on -- is clearly visible from Gaming Mode
       viewing distance.
