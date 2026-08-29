@@ -41,6 +41,15 @@ var fakeGames = []string{
 	"Portal 2",
 }
 
+// gameNameOrNone renders selected for logging without panicking on -1
+// (nothing selected yet).
+func gameNameOrNone(selected int) string {
+	if selected < 0 || selected >= len(fakeGames) {
+		return "none"
+	}
+	return fakeGames[selected]
+}
+
 // inGamescopeSession reports whether the process is running inside a
 // gamescope compositor session -- what Steam Deck's Gaming Mode (and
 // other SteamOS/gamescope-session-based handhelds) actually runs under.
@@ -111,6 +120,9 @@ func main() {
 
 	status := widget.NewLabel("Select a game and enter a token, then confirm.")
 	confirm := newDebugTouchButton("Confirm", func() {
+		if touchDebug {
+			log.Printf("[touch-debug] Confirm callback: selected=%d (%s)", selected, gameNameOrNone(selected))
+		}
 		if selected < 0 {
 			status.SetText("No game selected.")
 			return
