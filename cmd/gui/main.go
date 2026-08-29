@@ -1,7 +1,9 @@
 // Command gui is FrameShare's controller-driven GUI: pick an installed
 // game (or skip to review hardware alone), browse the merged hardware +
-// game-settings profile detected for it (#9), and correct any field that
-// came back wrong (#10).
+// game-settings profile detected for it (#9), correct any field that
+// came back wrong (#10), and confirm & save the result to a local file
+// (#11, see internal/profile.Save) -- no network calls; backend
+// submission is Phase 4.
 //
 // It's the production build-out of the navigation approach cmd/gui-spike
 // proved out for issue #33: a background goroutine polls SDL2's
@@ -10,10 +12,6 @@
 // currently has focus, using Fyne's own focus system rather than
 // building gamepad-aware navigation from scratch. Mouse and keyboard are
 // untouched: Fyne handles those natively.
-//
-// Confirming/saving the reviewed profile (#11) isn't wired in yet --
-// edits update the in-memory Profile, but there's no way to persist it
-// or leave the review screen once you're on it.
 package main
 
 import (
@@ -293,14 +291,16 @@ func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
 // via a shared Entry + Save button below the list, rather than swapping
 // widgets in place within the row -- Fyne's List recycles its item
 // CanvasObjects as it scrolls, so a per-row Entry could be silently
-// reassigned to a different field mid-edit. Confirm/save (#11) is not
-// yet wired in.
+// reassigned to a different field mid-edit. A Confirm & Save button
+// (#11) persists p, edits included, to a local file; there's no network
+// call and no further screen after that -- Phase 4 owns backend
+// submission.
 func (n *navigator) showReview(p *profile.Profile) {
 	fields := p.Fields()
 	var editingField profile.Field
 
 	const (
-		browseHint = "D-pad/stick: browse  |  A: edit a field"
+		browseHint = "D-pad/stick: browse  |  A: edit a field  |  LB/RB: switch List/Confirm"
 		editHint   = "LB/RB: switch Entry/Save  |  Steam+X: on-screen keyboard  |  A on Save: apply"
 	)
 
@@ -310,6 +310,7 @@ func (n *navigator) showReview(p *profile.Profile) {
 	editEntry.Hide()
 	saveButton := widget.NewButton("Save", nil)
 	saveButton.Hide()
+	confirmButton := widget.NewButton("Confirm & Save", nil)
 	hint := widget.NewLabel(browseHint)
 
 	list := widget.NewList(
@@ -329,7 +330,7 @@ func (n *navigator) showReview(p *profile.Profile) {
 		editEntry.Hide()
 		saveButton.Hide()
 		hint.SetText(browseHint)
-		n.focusables = []fyne.Focusable{list}
+		n.focusables = []fyne.Focusable{list, confirmButton}
 		n.focusIndex = 0
 		n.win.Canvas().Focus(list)
 	}
@@ -345,6 +346,22 @@ func (n *navigator) showReview(p *profile.Profile) {
 		list.Refresh()
 		status.Hide()
 		backToList()
+	}
+
+	confirmButton.OnTapped = func() {
+		dir, err := profile.DefaultDir()
+		if err != nil {
+			status.SetText(fmt.Sprintf("Save failed: %v", err))
+			status.Show()
+			return
+		}
+		path, err := profile.Save(p, dir)
+		if err != nil {
+			status.SetText(fmt.Sprintf("Save failed: %v", err))
+		} else {
+			status.SetText(fmt.Sprintf("Saved to %s", path))
+		}
+		status.Show()
 	}
 
 	list.OnSelected = func(id widget.ListItemID) {
@@ -366,6 +383,6 @@ func (n *navigator) showReview(p *profile.Profile) {
 		n.win.Canvas().Focus(editEntry)
 	}
 
-	content := container.NewBorder(nil, container.NewVBox(status, editEntry, saveButton, hint), nil, nil, list)
-	n.setScreen(content, []fyne.Focusable{list})
+	content := container.NewBorder(nil, container.NewVBox(status, editEntry, saveButton, confirmButton, hint), nil, nil, list)
+	n.setScreen(content, []fyne.Focusable{list, confirmButton})
 }
