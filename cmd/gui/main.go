@@ -105,6 +105,14 @@ type navigator struct {
 	// racing two collections against each other with whichever finishes
 	// last silently winning and no indication either happened.
 	busy bool
+	// onBack is invoked on ActionBack, if set. What "back" means changes
+	// with context -- return to the previous screen, cancel an
+	// in-progress field edit -- so each screen/mode sets it to whatever
+	// is correct for the state the user is currently in, rather than
+	// this being a single fixed action. nil means Back does nothing,
+	// which is correct for the first screen shown (there's nothing
+	// before it to go back to).
+	onBack func()
 }
 
 func newNavigator(w fyne.Window) *navigator {
@@ -142,6 +150,11 @@ func (n *navigator) dispatch(action controllerinput.Action) {
 		return
 	case controllerinput.ActionFocusPrevious:
 		n.cycleFocus(-1)
+		return
+	case controllerinput.ActionBack:
+		if n.onBack != nil {
+			n.onBack()
+		}
 		return
 	}
 
@@ -201,6 +214,8 @@ func detectGameEntries(ctx context.Context) ([]gameEntry, error) {
 // (plus hardwareOnlyLabel) that starts hardware/game-settings collection
 // on Activate and hands the resulting Profile to showReview.
 func (n *navigator) showGamePicker() {
+	n.onBack = nil // first screen -- nothing before it to go back to
+
 	status := widget.NewLabel("Detecting installed games...")
 	hint := widget.NewLabel("D-pad/stick: navigate  |  A: select")
 	content := container.NewBorder(nil, container.NewVBox(status, hint), nil, nil, widget.NewLabel(""))
@@ -296,12 +311,14 @@ func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
 // reassigned to a different field mid-edit. Confirm/save (#11) is not
 // yet wired in.
 func (n *navigator) showReview(p *profile.Profile) {
+	n.onBack = func() { n.showGamePicker() }
+
 	fields := p.Fields()
 	var editingField profile.Field
 
 	const (
-		browseHint = "D-pad/stick: browse  |  A: edit a field"
-		editHint   = "LB/RB: switch Entry/Save  |  Steam+X: on-screen keyboard  |  A on Save: apply"
+		browseHint = "D-pad/stick: browse  |  A: edit a field  |  B: back to game list"
+		editHint   = "LB/RB: switch Entry/Save  |  Steam+X: on-screen keyboard  |  A on Save: apply  |  B: cancel edit"
 	)
 
 	status := widget.NewLabel("")
@@ -328,10 +345,12 @@ func (n *navigator) showReview(p *profile.Profile) {
 	backToList := func() {
 		editEntry.Hide()
 		saveButton.Hide()
+		status.Hide()
 		hint.SetText(browseHint)
 		n.focusables = []fyne.Focusable{list}
 		n.focusIndex = 0
 		n.win.Canvas().Focus(list)
+		n.onBack = func() { n.showGamePicker() }
 	}
 
 	saveButton.OnTapped = func() {
@@ -343,7 +362,6 @@ func (n *navigator) showReview(p *profile.Profile) {
 		}
 		fields = p.Fields()
 		list.Refresh()
-		status.Hide()
 		backToList()
 	}
 
@@ -364,6 +382,10 @@ func (n *navigator) showReview(p *profile.Profile) {
 		n.focusables = []fyne.Focusable{editEntry, saveButton}
 		n.focusIndex = 0
 		n.win.Canvas().Focus(editEntry)
+		// Back cancels: discard whatever's in editEntry and return to
+		// browsing without calling SetValue, rather than treating an
+		// in-progress, unsaved edit as if it had been confirmed.
+		n.onBack = backToList
 	}
 
 	content := container.NewBorder(nil, container.NewVBox(status, editEntry, saveButton, hint), nil, nil, list)

@@ -36,6 +36,14 @@ const (
 	// fyne.Canvas.FocusNext/FocusPrevious) rather than by replaying a key.
 	ActionFocusNext
 	ActionFocusPrevious
+	// ActionBack signals "leave the current screen/mode without
+	// committing anything" (return to a previous screen, cancel an
+	// in-progress edit). It's kept separate from Activate rather than
+	// overloading it, and separate from the directional/focus actions,
+	// since it's a UI-level navigation command a caller must handle
+	// itself -- there's no Fyne key it can be generically replayed as
+	// the way Up/Down/Left/Right/Activate are.
+	ActionBack
 )
 
 func (a Action) String() string {
@@ -54,6 +62,8 @@ func (a Action) String() string {
 		return "focus-next"
 	case ActionFocusPrevious:
 		return "focus-previous"
+	case ActionBack:
+		return "back"
 	default:
 		return fmt.Sprintf("unknown action %d", int(a))
 	}
@@ -78,10 +88,13 @@ const debounceWindow = 150 * time.Millisecond
 // represents, if any. D-pad directions map to their matching directional
 // Action; the south face button (A on an Xbox-layout pad, Cross on
 // PlayStation, and what Steam Input reports for Steam Deck's south face
-// button) maps to Activate; the shoulder buttons cycle focus between
-// widgets, since D-pad/stick directions alone can't escape a widget that
-// consumes them internally (see ActionFocusNext). Every other button is
-// unmapped for now.
+// button) maps to Activate; the east face button (B on an Xbox-layout
+// pad, Circle on PlayStation, Steam Deck's east face button) maps to
+// Back, matching the back/cancel convention nearly every game and game
+// console UI already uses that button for; the shoulder buttons cycle
+// focus between widgets, since D-pad/stick directions alone can't
+// escape a widget that consumes them internally (see ActionFocusNext).
+// Every other button is unmapped for now.
 func ButtonAction(button sdl.GameControllerButton) (Action, bool) {
 	switch button {
 	case sdl.CONTROLLER_BUTTON_DPAD_UP:
@@ -94,6 +107,8 @@ func ButtonAction(button sdl.GameControllerButton) (Action, bool) {
 		return ActionRight, true
 	case sdl.CONTROLLER_BUTTON_A:
 		return ActionActivate, true
+	case sdl.CONTROLLER_BUTTON_B:
+		return ActionBack, true
 	case sdl.CONTROLLER_BUTTON_RIGHTSHOULDER:
 		return ActionFocusNext, true
 	case sdl.CONTROLLER_BUTTON_LEFTSHOULDER:
