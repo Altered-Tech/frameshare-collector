@@ -367,8 +367,8 @@ func (n *navigator) showReview(p *profile.Profile) {
 
 	list.OnSelected = func(id widget.ListItemID) {
 		f := fields[id]
-		if !p.Editable(f.Path) {
-			status.SetText(fmt.Sprintf("%s is not editable", f.Label))
+		if err := p.EditError(f.Path); err != nil {
+			status.SetText(err.Error())
 			status.Show()
 			return
 		}
