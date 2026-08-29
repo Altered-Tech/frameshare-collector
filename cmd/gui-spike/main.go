@@ -17,6 +17,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 
@@ -39,6 +40,9 @@ var fakeGames = []string{
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+	fullscreen := flag.Bool("fullscreen", false, "launch full-screen instead of the default small window; use this for Steam Deck Gaming Mode testing (see issue #34) in case gamescope doesn't force it")
+	flag.Parse()
 
 	a := app.NewWithID("com.alteredtech.frameshare-collector.gui-spike")
 	w := a.NewWindow("Controller Navigation Spike")
@@ -74,7 +78,11 @@ func main() {
 	})
 
 	w.SetContent(container.NewBorder(nil, container.NewVBox(authEntry, confirm, status, hint), nil, nil, gameList))
-	w.Resize(fyne.NewSize(480, 360))
+	if *fullscreen {
+		w.SetFullScreen(true)
+	} else {
+		w.Resize(fyne.NewSize(480, 360))
+	}
 
 	// Cycle focus among these three widgets ourselves rather than relying
 	// on Fyne's built-in Canvas.FocusNext/FocusPrevious: in testing, that
