@@ -20,7 +20,7 @@ func TestSave_RoundTrips(t *testing.T) {
 		Settings: gamesettings.TitleSettings{Display: gamesettings.DisplaySettings{VSync: true}},
 	}
 	p := Merge(hardware.Snapshot{CollectedAt: when, Device: hardware.DeviceInfo{Vendor: "Valve"}}, &gs)
-	if err := p.SetValue("hardware.Device.Vendor", "Corrected Vendor"); err != nil {
+	if err := p.SetValue("game_settings.Settings.GraphicsPreset", "Ultra"); err != nil {
 		t.Fatalf("SetValue: %v", err)
 	}
 
@@ -39,11 +39,11 @@ func TestSave_RoundTrips(t *testing.T) {
 		t.Fatalf("unmarshal saved file: %v", err)
 	}
 
-	if loaded.Hardware.Device.Vendor != "Corrected Vendor" {
-		t.Errorf("loaded Device.Vendor = %q, want %q", loaded.Hardware.Device.Vendor, "Corrected Vendor")
+	if loaded.GameSettings == nil || loaded.GameSettings.Settings.GraphicsPreset != "Ultra" {
+		t.Errorf("loaded GameSettings.Settings.GraphicsPreset = %+v, want %q", loaded.GameSettings, "Ultra")
 	}
-	if !loaded.Overrides["hardware.Device.Vendor"] {
-		t.Errorf("loaded profile lost the override marker for hardware.Device.Vendor")
+	if !loaded.Overrides["game_settings.Settings.GraphicsPreset"] {
+		t.Errorf("loaded profile lost the override marker for game_settings.Settings.GraphicsPreset")
 	}
 	if loaded.GameSettings == nil || !loaded.GameSettings.Settings.Display.VSync {
 		t.Errorf("loaded GameSettings.Settings.Display.VSync = %+v, want true", loaded.GameSettings)

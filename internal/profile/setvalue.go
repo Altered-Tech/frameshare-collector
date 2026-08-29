@@ -8,17 +8,28 @@ import (
 )
 
 // SetValue parses value and writes it into the leaf field at path (a
-// Path from Fields, e.g. "hardware.CPU.PhysicalCores" or
-// "hardware.GPUs[1].Name"), then marks that path Overridden. It returns
-// an error, leaving the Profile unchanged, if path doesn't resolve to a
-// settable leaf or value can't be parsed as that leaf's type (e.g. "not
-// a number" for an int field) -- an edit that can't be applied should be
-// rejected visibly, not silently discarded or used to corrupt the field
-// with a mismatched type.
+// Path from Fields, e.g. "game_settings.Settings.Display.VSync"), then
+// marks that path Overridden. It returns an error, leaving the Profile
+// unchanged, if path doesn't resolve to a settable leaf or value can't
+// be parsed as that leaf's type (e.g. "not a number" for an int field)
+// -- an edit that can't be applied should be rejected visibly, not
+// silently discarded or used to corrupt the field with a mismatched
+// type.
 //
-// Time fields (CollectedAt, ParsedAt) aren't editable through this: they
-// record when detection ran, not a detected setting, so resolvePath
-// rejects them.
+// Hardware fields (anything under "hardware.") are never editable: a
+// shared profile database can't tell a corrected value from a false one
+// a user typed to misrepresent their machine, and hardware detection is
+// reliable enough (unlike, say, a still-unsupported game's settings
+// parser) that "wrong" here should be reported and fixed upstream in
+// internal/hardware, not patched over per-submission. Game settings stay
+// editable: those are read from the title's own config file, which can
+// genuinely be stale, ambiguous, or only partially understood by a given
+// parser (see the per-title parsers registered in
+// internal/gamesettings), so a user correcting one is fixing a detection
+// gap, not fabricating a spec.
+//
+// Time fields (CollectedAt, ParsedAt) aren't editable through this
+// either: they record when detection ran, not a detected setting.
 func (p *Profile) SetValue(path, value string) error {
 	target, err := p.resolvePath(path)
 	if err != nil {
@@ -42,26 +53,35 @@ func (p *Profile) SetValue(path, value string) error {
 }
 
 // Editable reports whether path (a Path from Fields) can be changed via
-// SetValue. It's false for timestamps and for any path that doesn't
-// resolve at all; every other leaf Fields can produce is a supported
-// scalar kind (walk only ever calls appendLeaf, and therefore only ever
-// produces a Path, for kinds SetValue's setLeaf handles).
+// SetValue. It's false for hardware fields, timestamps, and any path
+// that doesn't resolve at all; every other leaf Fields can produce is a
+// supported scalar kind (walk only ever calls appendLeaf, and therefore
+// only ever produces a Path, for kinds SetValue's setLeaf handles).
 func (p *Profile) Editable(path string) bool {
-	v, err := p.resolvePath(path)
-	return err == nil && v.IsValid()
+	return p.EditError(path) == nil
 }
 
-// resolvePath walks p's Hardware (or GameSettings, if the path starts
-// with "game_settings.") struct following the same field-name/index
-// scheme walk uses to build Path in the first place, returning an
-// addressable, settable reflect.Value for the leaf.
+// EditError returns why path can't be edited via SetValue, or nil if it
+// can -- the same check Editable performs, but with the specific reason
+// SetValue would itself return (e.g. "is a hardware field" vs. "is a
+// timestamp" vs. an unrecognized path), so a caller can show the user
+// something more useful than a generic "not editable."
+func (p *Profile) EditError(path string) error {
+	_, err := p.resolvePath(path)
+	return err
+}
+
+// resolvePath walks p's GameSettings struct (the only editable root --
+// see SetValue's doc comment on why hardware fields are locked)
+// following the same field-name/index scheme walk uses to build Path in
+// the first place, returning an addressable, settable reflect.Value for
+// the leaf.
 func (p *Profile) resolvePath(path string) (reflect.Value, error) {
 	var root reflect.Value
 	var rest string
 	switch {
 	case strings.HasPrefix(path, "hardware."):
-		root = reflect.ValueOf(&p.Hardware).Elem()
-		rest = strings.TrimPrefix(path, "hardware.")
+		return reflect.Value{}, fmt.Errorf("%q is a hardware field: these are locked to what was detected and can't be edited", path)
 	case strings.HasPrefix(path, "game_settings."):
 		if p.GameSettings == nil {
 			return reflect.Value{}, fmt.Errorf("no game settings on this profile")
