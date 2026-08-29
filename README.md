@@ -6,9 +6,9 @@
 - Linux only: `lspci` and `xrandr` on `PATH` for GPU/display detection
   (usually already present on desktop distros; may be missing on a bare
   Wayland-only setup)
-- Only for `cmd/gui-spike` (see below): a C compiler, SDL2 development
-  headers, and Fyne's own native build dependencies. `cmd/collector` has
-  no such requirement.
+- Only for `cmd/gui` and `cmd/gui-spike` (see below): a C compiler, SDL2
+  development headers, and Fyne's own native build dependencies.
+  `cmd/collector` has no such requirement.
   - Linux: `gcc pkg-config libsdl2-dev libgl1-mesa-dev xorg-dev libxkbcommon-dev`
     (Debian/Ubuntu package names; `libxkbcommon-dev` is needed by GLFW's
     keyboard handling even on X11, not just Wayland)
@@ -41,6 +41,31 @@ Use `-out` to choose a different output directory:
 ```sh
 ./collector -out ~/Desktop
 ```
+
+## GUI
+
+`cmd/gui` is FrameShare's real controller-driven GUI, built on the input
+plumbing `cmd/gui-spike` (below) proved out. So far it covers issue #9:
+pick an installed game (or skip to review hardware alone), then browse
+the merged hardware + game-settings profile detected for it, as a
+read-only, controller-navigable list. Editing fields (#10) and
+confirming/saving the reviewed profile (#11) aren't wired in yet.
+
+```sh
+go run ./cmd/gui
+```
+
+Build a standalone binary the same way as `gui-spike` (`go build`, not
+`make`):
+
+```sh
+go build -o gui ./cmd/gui
+```
+
+It shares `cmd/gui-spike`'s controller-dispatch/focus-cycling plumbing,
+`-fullscreen` auto-detection under a gamescope session, and the same
+Steam Deck launch caveat below (launch as a non-Steam game, not from a
+Desktop Mode terminal, to avoid double-firing input).
 
 ## GUI navigation spike
 
