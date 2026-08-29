@@ -103,6 +103,17 @@ Touchscreen input surfaced two separate bugs during this pass, tracked
 in #41 rather than here: taps requiring a double-press with state
 lagging a step behind, and the mouse cursor appearing on tap.
 
+### Diagnosing #41's touch double-tap lag
+
+Pass `-debug-touch` to log raw hover/tap events (with position data) on
+the Confirm button and the game List's selection, since Fyne's own
+click handling for these widgets is synchronous with no built-in delay
+-- the current theory is that gamescope's touch-to-pointer emulation
+itself delivers a click using the *previous* tap's coordinates. Logs
+also get mirrored to `~/gui-spike-touch-debug.log` (stdout from a
+Gaming Mode launch isn't easily read back), so after reproducing the
+bug, switch to Desktop Mode and read that file directly.
+
 ## Releases
 
 Versioning and releases are automated by [semantic-release](https://github.com/semantic-release/semantic-release):
