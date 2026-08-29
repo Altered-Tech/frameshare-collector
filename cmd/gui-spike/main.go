@@ -19,8 +19,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -50,11 +52,35 @@ func inGamescopeSession() bool {
 	return os.Getenv("XDG_CURRENT_DESKTOP") == "gamescope" || os.Getenv("XDG_SESSION_DESKTOP") == "gamescope"
 }
 
+// touchDebugLogPath returns where -debug-touch's log file is written, so it
+// can be retrieved after a Gaming Mode run (whose stdout isn't easily read
+// back) by switching to Desktop Mode and reading it directly.
+func touchDebugLogPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = os.TempDir()
+	}
+	return filepath.Join(home, "gui-spike-touch-debug.log")
+}
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
 	fullscreen := flag.Bool("fullscreen", inGamescopeSession(), "launch full-screen instead of the default small window; defaults to true automatically under a gamescope session (Steam Deck Gaming Mode and similar), false elsewhere, so end users never need to set this themselves")
+	debugTouchFlag := flag.Bool("debug-touch", false, "log raw hover/tap events with position data, for diagnosing issue #41 (touchscreen double-tap lag). Also mirrors log output to a file since Gaming Mode's stdout isn't easily read back")
 	flag.Parse()
+	touchDebug = *debugTouchFlag
+
+	if touchDebug {
+		logPath := touchDebugLogPath()
+		if f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err != nil {
+			log.Printf("touch-debug: could not open log file %s: %v (logging to stderr only)", logPath, err)
+		} else {
+			defer f.Close()
+			log.SetOutput(io.MultiWriter(os.Stderr, f))
+			log.Printf("touch-debug: also logging to %s", logPath)
+		}
+	}
 
 	a := app.NewWithID("com.alteredtech.frameshare-collector.gui-spike")
 	w := a.NewWindow("Controller Navigation Spike")
@@ -68,7 +94,10 @@ func main() {
 	)
 
 	selected := -1
-	gameList.OnSelected = func(id widget.ListItemID) { selected = id }
+	gameList.OnSelected = func(id widget.ListItemID) {
+		selected = id
+		logSelection(id, fakeGames[id])
+	}
 
 	// Plain Entry, not NewPasswordEntry: this field only stands in for
 	// Entry-focus/typing testing, not real secret handling (that's out of
@@ -81,7 +110,7 @@ func main() {
 	hint := widget.NewLabel("D-pad/stick: navigate  |  A: activate  |  LB/RB: switch field")
 
 	status := widget.NewLabel("Select a game and enter a token, then confirm.")
-	confirm := widget.NewButton("Confirm", func() {
+	confirm := newDebugTouchButton("Confirm", func() {
 		if selected < 0 {
 			status.SetText("No game selected.")
 			return
