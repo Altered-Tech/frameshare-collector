@@ -87,21 +87,21 @@ fullscreen request is required, not optional. Pass `-fullscreen`/
 `-fullscreen=false` manually only to override the auto-detected default,
 e.g. for local testing.
 
-### Gaming Mode verification checklist (#34)
+### Gaming Mode verification (#34) -- confirmed on hardware
 
-Full-screen launch is confirmed working on hardware. Still to verify:
-
-- [ ] Text size, contrast, and widget scaling are legible at the Deck's
+- [x] Text size, contrast, and widget scaling are legible at the Deck's
       native 1280x800 resolution from typical Gaming Mode (couch/handheld)
-      viewing distance.
-- [ ] Fyne's default theme/scale renders sensibly with no manual DPI
-      tuning; if not, `fyne.Settings.SetScale` (or `FYNE_SCALE`) is the
-      knob to reach for.
-- [x] The window is full-screen/borderless in Gaming Mode -- confirmed,
-      via the auto-detected `-fullscreen` default (see above).
-- [ ] Focus highlighting -- the only visual indicator of which widget a
+      viewing distance, with Fyne's default theme/scale as-is -- no
+      manual DPI tuning needed.
+- [x] The window is full-screen/borderless in Gaming Mode, via the
+      auto-detected `-fullscreen` default (see above).
+- [x] Focus highlighting -- the only visual indicator of which widget a
       gamepad-only user is on -- is clearly visible from Gaming Mode
       viewing distance.
+
+Touchscreen input surfaced two separate bugs during this pass, tracked
+in #41 rather than here: taps requiring a double-press with state
+lagging a step behind, and the mouse cursor appearing on tap.
 
 ## Releases
 
