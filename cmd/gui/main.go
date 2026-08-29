@@ -95,6 +95,14 @@ type navigator struct {
 	win        fyne.Window
 	focusables []fyne.Focusable
 	focusIndex int
+	// busy guards collectAndReview against a second Activate press
+	// re-entering it while a collection is already in flight -- without
+	// it, a controller-only user seeing no immediate feedback (hardware
+	// detection can take real time, e.g. Windows' PowerShell-based GPU
+	// detection) could plausibly press Activate again on a different row,
+	// racing two collections against each other with whichever finishes
+	// last silently winning and no indication either happened.
+	busy bool
 }
 
 func newNavigator(w fyne.Window) *navigator {
@@ -236,8 +244,14 @@ func (n *navigator) renderGamePicker(entries []gameEntry, status, hint *widget.L
 
 // collectAndReview runs hardware and (if entry is non-nil) game-settings
 // detection, then switches to the review screen. entry is nil when the
-// user picked hardwareOnlyLabel.
+// user picked hardwareOnlyLabel. A second call while one is already in
+// flight (see busy's doc comment) is ignored rather than racing a second
+// collection against the first.
 func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
+	if n.busy {
+		return
+	}
+	n.busy = true
 	status.SetText("Collecting profile...")
 
 	go func() {
@@ -249,7 +263,10 @@ func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
 
 		snap, err := hardware.Collect(ctx, installPath)
 		if err != nil {
-			fyne.Do(func() { status.SetText(fmt.Sprintf("Hardware detection failed: %v", err)) })
+			fyne.Do(func() {
+				n.busy = false
+				status.SetText(fmt.Sprintf("Hardware detection failed: %v", err))
+			})
 			return
 		}
 		snap.CollectorVersion = version
@@ -262,7 +279,10 @@ func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
 		}
 
 		p := profile.Merge(snap, gameSettings)
-		fyne.Do(func() { n.showReview(p) })
+		fyne.Do(func() {
+			n.busy = false
+			n.showReview(p)
+		})
 	}()
 }
 
