@@ -217,6 +217,7 @@ func (n *navigator) showGamePicker() {
 	n.onBack = nil // first screen -- nothing before it to go back to
 
 	status := widget.NewLabel("Detecting installed games...")
+	status.Wrapping = fyne.TextWrapWord
 	hint := widget.NewLabel("D-pad/stick: navigate  |  A: select")
 	content := container.NewBorder(nil, container.NewVBox(status, hint), nil, nil, widget.NewLabel(""))
 	n.setScreen(content, nil)
@@ -225,6 +226,7 @@ func (n *navigator) showGamePicker() {
 		entries, err := detectGameEntries(context.Background())
 		fyne.Do(func() {
 			if err != nil {
+				log.Printf("gui: detecting game libraries: %v", err)
 				status.SetText(fmt.Sprintf("Could not detect game libraries: %v", err))
 			}
 			n.renderGamePicker(entries, status, hint)
@@ -280,6 +282,7 @@ func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
 
 		snap, err := hardware.Collect(ctx, installPath)
 		if err != nil {
+			log.Printf("gui: hardware detection failed: %v", err)
 			fyne.Do(func() {
 				n.busy = false
 				status.SetText(fmt.Sprintf("Hardware detection failed: %v", err))
@@ -304,6 +307,7 @@ func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
 		var gameSettings *gamesettings.GameProfile
 		if entry != nil {
 			gameSettings = profile.CollectGameSettings(entry.game, entry.source, func(msg string) {
+				log.Printf("gui: %s", msg)
 				gameSettingsWarning = msg
 			})
 		}
@@ -341,6 +345,13 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 	)
 
 	status := widget.NewLabel(warning)
+	// Wrapping (off by default) matters here specifically: a game
+	// settings collection error wraps a full config file path plus the
+	// underlying OS error, easily 100+ characters -- left unwrapped, a
+	// Label's width is exactly its text's width, so Fyne's layout grows
+	// the whole window to fit one long line instead of the window
+	// staying put and the text wrapping within it.
+	status.Wrapping = fyne.TextWrapWord
 	if warning == "" {
 		status.Hide()
 	}
