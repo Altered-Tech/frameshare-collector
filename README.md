@@ -45,11 +45,12 @@ Use `-out` to choose a different output directory:
 ## GUI
 
 `cmd/gui` is FrameShare's real controller-driven GUI, built on the input
-plumbing `cmd/gui-spike` (below) proved out. So far it covers issue #9:
-pick an installed game (or skip to review hardware alone), then browse
-the merged hardware + game-settings profile detected for it, as a
-read-only, controller-navigable list. Editing fields (#10) and
-confirming/saving the reviewed profile (#11) aren't wired in yet.
+plumbing `cmd/gui-spike` (below) proved out: pick an installed game (or
+skip to review hardware alone), browse the merged hardware +
+game-settings profile detected for it (#9), correct any field that came
+back wrong (#10), and confirm & save the result to
+`~/FrameShare/profiles/` (#11). No network calls -- backend submission
+is Phase 4.
 
 ```sh
 go run ./cmd/gui

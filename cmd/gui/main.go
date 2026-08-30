@@ -1,7 +1,9 @@
 // Command gui is FrameShare's controller-driven GUI: pick an installed
 // game (or skip to review hardware alone), browse the merged hardware +
-// game-settings profile detected for it (#9), and correct any field that
-// came back wrong (#10).
+// game-settings profile detected for it (#9), correct any field that
+// came back wrong (#10), and confirm & save the result to a local file
+// (#11, see internal/profile.Save) -- no network calls; backend
+// submission is Phase 4.
 //
 // It's the production build-out of the navigation approach cmd/gui-spike
 // proved out for issue #33: a background goroutine polls SDL2's
@@ -10,10 +12,6 @@
 // currently has focus, using Fyne's own focus system rather than
 // building gamepad-aware navigation from scratch. Mouse and keyboard are
 // untouched: Fyne handles those natively.
-//
-// Confirming/saving the reviewed profile (#11) isn't wired in yet --
-// edits update the in-memory Profile, but there's no way to persist it
-// or leave the review screen once you're on it.
 package main
 
 import (
@@ -343,8 +341,9 @@ func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
 // shown up front -- it's why GameSettings came back nil (e.g. no parser
 // registered for the selected title), which would otherwise be
 // invisible: p simply has fewer fields than the user might expect, with
-// nothing on this screen explaining why. Confirm/save (#11) is not yet
-// wired in.
+// nothing on this screen explaining why. A Confirm & Save button (#11)
+// persists p, edits included, to a local file; there's no network call
+// and no further screen after that -- Phase 4 owns backend submission.
 func (n *navigator) showReview(p *profile.Profile, warning string) {
 	n.onBack = func() { n.showGamePicker() }
 
@@ -352,7 +351,7 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 	var editingField profile.Field
 
 	const (
-		browseHint      = "D-pad/stick: browse  |  A: edit a field  |  B: back to game list"
+		browseHint      = "D-pad/stick: browse  |  A: edit a field  |  LB/RB: switch List/Confirm  |  B: back to game list"
 		editHint        = "LB/RB: switch Entry/Save  |  Steam+X: on-screen keyboard  |  A on Save: apply  |  B: cancel edit"
 		browseBackLabel = "Back to Game List"
 		cancelLabel     = "Cancel"
@@ -373,6 +372,7 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 	editEntry.Hide()
 	saveButton := widget.NewButton("Save", nil)
 	saveButton.Hide()
+	confirmButton := widget.NewButton("Confirm & Save", nil)
 	hint := widget.NewLabel(browseHint)
 	// backButton exists for mouse/keyboard: those bypass n.dispatch
 	// entirely (Fyne handles them natively, see the package doc comment),
@@ -406,7 +406,7 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 		status.Hide()
 		hint.SetText(browseHint)
 		backButton.SetText(browseBackLabel)
-		n.focusables = []fyne.Focusable{list}
+		n.focusables = []fyne.Focusable{list, confirmButton}
 		n.focusIndex = 0
 		n.win.Canvas().Focus(list)
 		n.onBack = func() { n.showGamePicker() }
@@ -423,6 +423,25 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 		fields = p.Fields()
 		list.Refresh()
 		backToList()
+	}
+
+	confirmButton.OnTapped = func() {
+		dir, err := profile.DefaultDir()
+		if err != nil {
+			log.Printf("gui: save failed: %v", err)
+			status.SetText(fmt.Sprintf("Save failed: %v", err))
+			status.Show()
+			return
+		}
+		path, err := profile.Save(p, dir)
+		if err != nil {
+			log.Printf("gui: save failed: %v", err)
+			status.SetText(fmt.Sprintf("Save failed: %v", err))
+		} else {
+			log.Printf("gui: saved profile to %s", path)
+			status.SetText(fmt.Sprintf("Saved to %s", path))
+		}
+		status.Show()
 	}
 
 	list.OnSelected = func(id widget.ListItemID) {
@@ -451,6 +470,6 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 		n.onBack = backToList
 	}
 
-	content := container.NewBorder(nil, container.NewVBox(status, editEntry, saveButton, backButton, hint), nil, nil, list)
-	n.setScreen(content, []fyne.Focusable{list})
+	content := container.NewBorder(nil, container.NewVBox(status, editEntry, saveButton, confirmButton, backButton, hint), nil, nil, list)
+	n.setScreen(content, []fyne.Focusable{list, confirmButton})
 }
