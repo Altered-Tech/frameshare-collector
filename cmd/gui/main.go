@@ -317,8 +317,10 @@ func (n *navigator) showReview(p *profile.Profile) {
 	var editingField profile.Field
 
 	const (
-		browseHint = "D-pad/stick: browse  |  A: edit a field  |  LB/RB: switch List/Confirm  |  B: back to game list"
-		editHint   = "LB/RB: switch Entry/Save  |  Steam+X: on-screen keyboard  |  A on Save: apply  |  B: cancel edit"
+		browseHint      = "D-pad/stick: browse  |  A: edit a field  |  LB/RB: switch List/Confirm  |  B: back to game list"
+		editHint        = "LB/RB: switch Entry/Save  |  Steam+X: on-screen keyboard  |  A on Save: apply  |  B: cancel edit"
+		browseBackLabel = "Back to Game List"
+		cancelLabel     = "Cancel"
 	)
 
 	status := widget.NewLabel("")
@@ -329,6 +331,18 @@ func (n *navigator) showReview(p *profile.Profile) {
 	saveButton.Hide()
 	confirmButton := widget.NewButton("Confirm & Save", nil)
 	hint := widget.NewLabel(browseHint)
+	// backButton exists for mouse/keyboard: those bypass n.dispatch
+	// entirely (Fyne handles them natively, see the package doc comment),
+	// so ActionBack's gamepad mapping alone leaves them with no way to
+	// leave this screen or cancel an edit. Calling n.onBack rather than
+	// e.g. n.showGamePicker directly keeps this button doing exactly what
+	// the B button currently does, including its label/target changing
+	// with context (browse vs. edit) -- the two can't drift apart.
+	backButton := widget.NewButton(browseBackLabel, func() {
+		if n.onBack != nil {
+			n.onBack()
+		}
+	})
 
 	list := widget.NewList(
 		func() int { return len(fields) },
@@ -348,6 +362,7 @@ func (n *navigator) showReview(p *profile.Profile) {
 		saveButton.Hide()
 		status.Hide()
 		hint.SetText(browseHint)
+		backButton.SetText(browseBackLabel)
 		n.focusables = []fyne.Focusable{list, confirmButton}
 		n.focusIndex = 0
 		n.win.Canvas().Focus(list)
@@ -396,15 +411,18 @@ func (n *navigator) showReview(p *profile.Profile) {
 		editEntry.Show()
 		saveButton.Show()
 		hint.SetText(editHint)
+		backButton.SetText(cancelLabel)
 		n.focusables = []fyne.Focusable{editEntry, saveButton}
 		n.focusIndex = 0
 		n.win.Canvas().Focus(editEntry)
-		// Back cancels: discard whatever's in editEntry and return to
-		// browsing without calling SetValue, rather than treating an
-		// in-progress, unsaved edit as if it had been confirmed.
+		// Back (both the gamepad B button and backButton, which calls
+		// n.onBack too) cancels: discard whatever's in editEntry and
+		// return to browsing without calling SetValue, rather than
+		// treating an in-progress, unsaved edit as if it had been
+		// confirmed.
 		n.onBack = backToList
 	}
 
-	content := container.NewBorder(nil, container.NewVBox(status, editEntry, saveButton, confirmButton, hint), nil, nil, list)
+	content := container.NewBorder(nil, container.NewVBox(status, editEntry, saveButton, confirmButton, backButton, hint), nil, nil, list)
 	n.setScreen(content, []fyne.Focusable{list, confirmButton})
 }
