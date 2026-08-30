@@ -374,6 +374,12 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 	saveButton.Hide()
 	confirmButton := widget.NewButton("Confirm & Save", nil)
 	hint := widget.NewLabel(browseHint)
+	// Wrapping (off by default) matters here for the same reason as
+	// status above: browseHint/editHint are both 90+ characters, and an
+	// unwrapped Label's width is exactly its text's width -- on Steam
+	// Deck's fixed fullscreen viewport that runs the whole layout off
+	// the right edge of the screen instead of wrapping within it (#47).
+	hint.Wrapping = fyne.TextWrapWord
 	// backButton exists for mouse/keyboard: those bypass n.dispatch
 	// entirely (Fyne handles them natively, see the package doc comment),
 	// so ActionBack's gamepad mapping alone leaves them with no way to
