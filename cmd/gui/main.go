@@ -406,7 +406,7 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 		status.Hide()
 		hint.SetText(browseHint)
 		backButton.SetText(browseBackLabel)
-		n.focusables = []fyne.Focusable{list, confirmButton}
+		n.focusables = []fyne.Focusable{list, confirmButton, backButton}
 		n.focusIndex = 0
 		n.win.Canvas().Focus(list)
 		n.onBack = func() { n.showGamePicker() }
@@ -459,7 +459,7 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 		saveButton.Show()
 		hint.SetText(editHint)
 		backButton.SetText(cancelLabel)
-		n.focusables = []fyne.Focusable{editEntry, saveButton}
+		n.focusables = []fyne.Focusable{editEntry, saveButton, backButton}
 		n.focusIndex = 0
 		n.win.Canvas().Focus(editEntry)
 		// Back (both the gamepad B button and backButton, which calls
@@ -471,5 +471,5 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 	}
 
 	content := container.NewBorder(nil, container.NewVBox(status, editEntry, saveButton, confirmButton, backButton, hint), nil, nil, list)
-	n.setScreen(content, []fyne.Focusable{list, confirmButton})
+	n.setScreen(content, []fyne.Focusable{list, confirmButton, backButton})
 }
