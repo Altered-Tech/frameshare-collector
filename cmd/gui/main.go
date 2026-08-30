@@ -309,6 +309,18 @@ func (n *navigator) showReview(p *profile.Profile) {
 
 	fields := p.Fields()
 	hint := widget.NewLabel("D-pad/stick: browse  |  B: back to game list")
+	// backButton exists for mouse/keyboard: those bypass n.dispatch
+	// entirely (Fyne handles them natively, see the package doc comment),
+	// so ActionBack's gamepad mapping alone leaves them with no way to
+	// leave this screen. Calling n.onBack rather than n.showGamePicker
+	// directly keeps this button doing exactly what the B button
+	// currently does, including once #10 makes onBack context-dependent
+	// (cancel an edit vs. leave the screen) -- the two can't drift apart.
+	backButton := widget.NewButton("Back to Game List", func() {
+		if n.onBack != nil {
+			n.onBack()
+		}
+	})
 
 	list := widget.NewList(
 		func() int { return len(fields) },
@@ -323,6 +335,6 @@ func (n *navigator) showReview(p *profile.Profile) {
 		},
 	)
 
-	content := container.NewBorder(nil, hint, nil, nil, list)
+	content := container.NewBorder(nil, container.NewVBox(backButton, hint), nil, nil, list)
 	n.setScreen(content, []fyne.Focusable{list})
 }
