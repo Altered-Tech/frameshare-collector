@@ -414,14 +414,17 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 	confirmButton.OnTapped = func() {
 		dir, err := profile.DefaultDir()
 		if err != nil {
+			log.Printf("gui: save failed: %v", err)
 			status.SetText(fmt.Sprintf("Save failed: %v", err))
 			status.Show()
 			return
 		}
 		path, err := profile.Save(p, dir)
 		if err != nil {
+			log.Printf("gui: save failed: %v", err)
 			status.SetText(fmt.Sprintf("Save failed: %v", err))
 		} else {
+			log.Printf("gui: saved profile to %s", path)
 			status.SetText(fmt.Sprintf("Saved to %s", path))
 		}
 		status.Show()
