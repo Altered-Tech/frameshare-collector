@@ -286,28 +286,49 @@ func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
 		}
 		snap.CollectorVersion = version
 
+		// gameSettingsWarning carries CollectGameSettings' reason for a
+		// nil GameProfile (e.g. no parser registered for this title)
+		// across the screen switch below. It can't just be shown via
+		// status here: status belongs to the game-picker screen, and
+		// showReview's own fyne.Do call -- queued immediately after,
+		// executing right behind this one -- replaces the whole window
+		// content before a human could ever see it flash by. Passing it
+		// into showReview so it can display it in the review screen's
+		// own status label is the fix -- this is what a game with no
+		// settings parser actually looks like today, not a silent gap:
+		// only 3 titles (Team Fortress 2, Terraria, Stray) have one
+		// registered, so it's the common case for any other game.
+		var gameSettingsWarning string
 		var gameSettings *gamesettings.GameProfile
 		if entry != nil {
 			gameSettings = profile.CollectGameSettings(entry.game, entry.source, func(msg string) {
-				fyne.Do(func() { status.SetText(msg) })
+				gameSettingsWarning = msg
 			})
 		}
 
 		p := profile.Merge(snap, gameSettings)
 		fyne.Do(func() {
 			n.busy = false
-			n.showReview(p)
+			n.showReview(p, gameSettingsWarning)
 		})
 	}()
 }
 
 // showReview renders every field of p, flattened via Profile.Fields, as
-// a read-only, controller-navigable List. Editing (#10) and confirm/save
-// (#11) are not yet wired in -- this issue (#9) is view-only.
-func (n *navigator) showReview(p *profile.Profile) {
+// a read-only, controller-navigable List. warning, if non-empty, is
+// shown up front -- it's why GameSettings came back nil (e.g. no parser
+// registered for the selected title), which is otherwise invisible: p
+// simply has fewer fields than the user might expect, with nothing on
+// this screen explaining why. Editing (#10) and confirm/save (#11) are
+// not yet wired in -- this issue (#9) is view-only.
+func (n *navigator) showReview(p *profile.Profile, warning string) {
 	n.onBack = func() { n.showGamePicker() }
 
 	fields := p.Fields()
+	status := widget.NewLabel(warning)
+	if warning == "" {
+		status.Hide()
+	}
 	hint := widget.NewLabel("D-pad/stick: browse  |  B: back to game list")
 	// backButton exists for mouse/keyboard: those bypass n.dispatch
 	// entirely (Fyne handles them natively, see the package doc comment),
@@ -335,6 +356,6 @@ func (n *navigator) showReview(p *profile.Profile) {
 		},
 	)
 
-	content := container.NewBorder(nil, container.NewVBox(backButton, hint), nil, nil, list)
+	content := container.NewBorder(nil, container.NewVBox(status, backButton, hint), nil, nil, list)
 	n.setScreen(content, []fyne.Focusable{list})
 }
