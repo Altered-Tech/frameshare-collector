@@ -1,6 +1,7 @@
 // Command gui is FrameShare's controller-driven GUI: pick an installed
-// game (or skip to review hardware alone), then browse the merged
-// hardware + game-settings profile detected for it.
+// game (or skip to review hardware alone), browse the merged hardware +
+// game-settings profile detected for it (#9), and correct any field that
+// came back wrong (#10).
 //
 // It's the production build-out of the navigation approach cmd/gui-spike
 // proved out for issue #33: a background goroutine polls SDL2's
@@ -10,8 +11,9 @@
 // building gamepad-aware navigation from scratch. Mouse and keyboard are
 // untouched: Fyne handles those natively.
 //
-// This first pass (issue #9) is view-only. Editing fields (#10) and
-// confirming/saving the reviewed profile (#11) build on top of it.
+// Confirming/saving the reviewed profile (#11) isn't wired in yet --
+// edits update the in-memory Profile, but there's no way to persist it
+// or leave the review screen once you're on it.
 package main
 
 import (
@@ -333,16 +335,29 @@ func (n *navigator) collectAndReview(entry *gameEntry, status *widget.Label) {
 }
 
 // showReview renders every field of p, flattened via Profile.Fields, as
-// a read-only, controller-navigable List. warning, if non-empty, is
+// a controller-navigable List; Activate on a row edits that field (#10)
+// via a shared Entry + Save button below the list, rather than swapping
+// widgets in place within the row -- Fyne's List recycles its item
+// CanvasObjects as it scrolls, so a per-row Entry could be silently
+// reassigned to a different field mid-edit. warning, if non-empty, is
 // shown up front -- it's why GameSettings came back nil (e.g. no parser
-// registered for the selected title), which is otherwise invisible: p
-// simply has fewer fields than the user might expect, with nothing on
-// this screen explaining why. Editing (#10) and confirm/save (#11) are
-// not yet wired in -- this issue (#9) is view-only.
+// registered for the selected title), which would otherwise be
+// invisible: p simply has fewer fields than the user might expect, with
+// nothing on this screen explaining why. Confirm/save (#11) is not yet
+// wired in.
 func (n *navigator) showReview(p *profile.Profile, warning string) {
 	n.onBack = func() { n.showGamePicker() }
 
 	fields := p.Fields()
+	var editingField profile.Field
+
+	const (
+		browseHint      = "D-pad/stick: browse  |  A: edit a field  |  B: back to game list"
+		editHint        = "LB/RB: switch Entry/Save  |  Steam+X: on-screen keyboard  |  A on Save: apply  |  B: cancel edit"
+		browseBackLabel = "Back to Game List"
+		cancelLabel     = "Cancel"
+	)
+
 	status := widget.NewLabel(warning)
 	// Wrapping (off by default) matters here specifically: a game
 	// settings collection error wraps a full config file path plus the
@@ -354,15 +369,19 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 	if warning == "" {
 		status.Hide()
 	}
-	hint := widget.NewLabel("D-pad/stick: browse  |  B: back to game list")
+	editEntry := widget.NewEntry()
+	editEntry.Hide()
+	saveButton := widget.NewButton("Save", nil)
+	saveButton.Hide()
+	hint := widget.NewLabel(browseHint)
 	// backButton exists for mouse/keyboard: those bypass n.dispatch
 	// entirely (Fyne handles them natively, see the package doc comment),
 	// so ActionBack's gamepad mapping alone leaves them with no way to
-	// leave this screen. Calling n.onBack rather than n.showGamePicker
-	// directly keeps this button doing exactly what the B button
-	// currently does, including once #10 makes onBack context-dependent
-	// (cancel an edit vs. leave the screen) -- the two can't drift apart.
-	backButton := widget.NewButton("Back to Game List", func() {
+	// leave this screen or cancel an edit. Calling n.onBack rather than
+	// e.g. n.showGamePicker directly keeps this button doing exactly what
+	// the B button currently does, including its label/target changing
+	// with context (browse vs. edit) -- the two can't drift apart.
+	backButton := widget.NewButton(browseBackLabel, func() {
 		if n.onBack != nil {
 			n.onBack()
 		}
@@ -381,6 +400,57 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 		},
 	)
 
-	content := container.NewBorder(nil, container.NewVBox(status, backButton, hint), nil, nil, list)
+	backToList := func() {
+		editEntry.Hide()
+		saveButton.Hide()
+		status.Hide()
+		hint.SetText(browseHint)
+		backButton.SetText(browseBackLabel)
+		n.focusables = []fyne.Focusable{list}
+		n.focusIndex = 0
+		n.win.Canvas().Focus(list)
+		n.onBack = func() { n.showGamePicker() }
+	}
+
+	saveButton.OnTapped = func() {
+		if err := p.SetValue(editingField.Path, editEntry.Text); err != nil {
+			log.Printf("gui: %v", err)
+			status.SetText(err.Error())
+			n.focusIndex = 0
+			n.win.Canvas().Focus(editEntry)
+			return
+		}
+		fields = p.Fields()
+		list.Refresh()
+		backToList()
+	}
+
+	list.OnSelected = func(id widget.ListItemID) {
+		f := fields[id]
+		if err := p.EditError(f.Path); err != nil {
+			status.SetText(err.Error())
+			status.Show()
+			return
+		}
+		editingField = f
+		status.SetText(fmt.Sprintf("Editing: %s", f.Label))
+		status.Show()
+		editEntry.SetText(f.Value)
+		editEntry.Show()
+		saveButton.Show()
+		hint.SetText(editHint)
+		backButton.SetText(cancelLabel)
+		n.focusables = []fyne.Focusable{editEntry, saveButton}
+		n.focusIndex = 0
+		n.win.Canvas().Focus(editEntry)
+		// Back (both the gamepad B button and backButton, which calls
+		// n.onBack too) cancels: discard whatever's in editEntry and
+		// return to browsing without calling SetValue, rather than
+		// treating an in-progress, unsaved edit as if it had been
+		// confirmed.
+		n.onBack = backToList
+	}
+
+	content := container.NewBorder(nil, container.NewVBox(status, editEntry, saveButton, backButton, hint), nil, nil, list)
 	n.setScreen(content, []fyne.Focusable{list})
 }
