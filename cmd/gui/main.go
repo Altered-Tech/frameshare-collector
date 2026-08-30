@@ -400,6 +400,7 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 
 	saveButton.OnTapped = func() {
 		if err := p.SetValue(editingField.Path, editEntry.Text); err != nil {
+			log.Printf("gui: %v", err)
 			status.SetText(err.Error())
 			n.focusIndex = 0
 			n.win.Canvas().Focus(editEntry)
