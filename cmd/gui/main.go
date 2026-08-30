@@ -182,6 +182,20 @@ func actionKey(action controllerinput.Action) fyne.KeyName {
 	}
 }
 
+// newListItemLabel returns a Label template for a widget.List row,
+// truncated with an ellipsis rather than left to overflow. On Steam
+// Deck's fixed fullscreen viewport a Label doesn't grow the window the
+// way it does in a resizable desktop one (see the status-label fix
+// above) -- instead, an unwrapped, untruncated row (a full CPU model
+// string, a long install path, "Label: Value" for a verbose field) just
+// runs off the right edge of the physical screen with nothing to scroll
+// it back into view.
+func newListItemLabel() *widget.Label {
+	lbl := widget.NewLabel("template")
+	lbl.Truncation = fyne.TextTruncateEllipsis
+	return lbl
+}
+
 // gameEntries flattens every installed game across all detected
 // libraries into a single pickable list, mirroring cmd/collector's own
 // gameEntries/pickGame helpers.
@@ -241,7 +255,7 @@ func (n *navigator) renderGamePicker(entries []gameEntry, status, hint *widget.L
 
 	list := widget.NewList(
 		func() int { return len(labels) },
-		func() fyne.CanvasObject { return widget.NewLabel("template") },
+		func() fyne.CanvasObject { return newListItemLabel() },
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			obj.(*widget.Label).SetText(labels[id])
 		},
@@ -356,7 +370,7 @@ func (n *navigator) showReview(p *profile.Profile, warning string) {
 
 	list := widget.NewList(
 		func() int { return len(fields) },
-		func() fyne.CanvasObject { return widget.NewLabel("template") },
+		func() fyne.CanvasObject { return newListItemLabel() },
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			f := fields[id]
 			text := fmt.Sprintf("%s: %s", f.Label, f.Value)
